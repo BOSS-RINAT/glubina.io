@@ -1,0 +1,611 @@
+/* ============================================================
+   БАЗОВЫЕ ПЕРЕМЕННЫЕ — стиль в духе iOS / macOS
+   ============================================================ */
+:root {
+  --blue: #0A84FF;
+  --green: #30D158;
+  --yellow: #FFD60A;
+  --orange: #FF9F0A;
+  --red: #FF453A;
+  --purple: #BF5AF2;
+
+  --bg-top: #EAF1FB;
+  --bg-bottom: #F6F3FB;
+  --text-primary: #1C1C1E;
+  --text-secondary: #6E6E73;
+  --card-bg: rgba(255, 255, 255, 0.72);
+  --card-border: rgba(255, 255, 255, 0.6);
+  --track-bg: rgba(120, 120, 128, 0.16);
+
+  --radius-lg: 28px;
+  --radius-md: 20px;
+  --radius-sm: 14px;
+
+  --shadow-soft: 0 8px 30px rgba(30, 30, 60, 0.08);
+  --shadow-card: 0 4px 18px rgba(30, 30, 60, 0.06);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-primary);
+  background: radial-gradient(circle at 20% 0%, var(--bg-top), var(--bg-bottom) 70%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+}
+
+a { text-decoration: none; color: inherit; }
+button { font-family: inherit; cursor: pointer; }
+
+.app-shell {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+
+/* ============================================================
+   TOP NAV
+   ============================================================ */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.top-nav .brand {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.top-nav .brand span {
+  color: var(--blue);
+}
+
+.nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--blue);
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  background: rgba(10, 132, 255, 0.1);
+  transition: background 0.2s ease;
+}
+.nav-back:hover { background: rgba(10, 132, 255, 0.18); }
+
+/* ============================================================
+   GLASS CARD BASE
+   ============================================================ */
+.glass {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--shadow-card);
+}
+
+/* ============================================================
+   HERO / GROUP STATS
+   ============================================================ */
+.hero-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 30px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-soft);
+  gap: 20px;
+}
+
+.participant-hero .hero-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.hero-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.hero-percent {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.participant-name {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 2px;
+}
+
+.hero-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.hero-right {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring-center-label {
+  position: absolute;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.group-alerts {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   CHIPS
+   ============================================================ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.chip-red { background: rgba(255, 69, 58, 0.14); color: #D70015; }
+.chip-yellow { background: rgba(255, 214, 10, 0.22); color: #8A6100; }
+.chip-green { background: rgba(48, 209, 88, 0.14); color: #1B7F35; }
+
+/* ============================================================
+   SECTION TITLE
+   ============================================================ */
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 24px 4px 14px;
+  letter-spacing: -0.01em;
+}
+
+.section-title:first-child { margin-top: 0; }
+
+.section-title-sub {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   SECOND HERO CARD (вовлечение)
+   ============================================================ */
+.hero-card-secondary {
+  margin-bottom: 8px;
+}
+
+.hero-percent-sm {
+  font-size: 36px;
+}
+
+.hero-percent-of {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   ПОДИУМ (топ-3)
+   ============================================================ */
+.podium {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+
+.podium-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 22px 14px 18px;
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  border: 1.5px solid transparent;
+}
+
+.podium-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-soft);
+}
+
+.podium-rank-1 {
+  order: 2;
+  padding-top: 30px;
+  padding-bottom: 26px;
+  border-color: rgba(255, 191, 0, 0.55);
+  box-shadow: 0 10px 30px rgba(255, 191, 0, 0.18);
+}
+
+.podium-rank-2 {
+  order: 1;
+  border-color: rgba(170, 170, 180, 0.5);
+}
+
+.podium-rank-3 {
+  order: 3;
+  border-color: rgba(205, 127, 50, 0.45);
+}
+
+.podium-medal {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.podium-rank-1 .avatar-lg {
+  width: 76px;
+  height: 76px;
+  font-size: 28px;
+}
+
+.podium-name {
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.podium-score {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 2px 0 10px;
+}
+
+.podium-card .progress-bar-track.small {
+  width: 100%;
+  margin: 0 0 8px;
+}
+
+.podium-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   RANK BADGE (обычные карточки, места 4+)
+   ============================================================ */
+.rank-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(120, 120, 128, 0.14);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   ENGAGEMENT (вовлечение)
+   ============================================================ */
+.p-card-engagement-row {
+  margin-bottom: 10px;
+}
+
+.engagement-tag {
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+
+.engagement-met { background: rgba(191, 90, 242, 0.14); color: #7A1FA8; }
+.engagement-low { background: rgba(120, 120, 128, 0.12); color: var(--text-secondary); }
+
+.engagement-row .task-title { cursor: default; }
+
+/* ============================================================
+   PARTICIPANT CARDS (dashboard grid)
+   ============================================================ */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.p-card {
+  display: block;
+  padding: 20px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.p-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-soft);
+}
+
+.p-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 18px;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+}
+
+.avatar-lg {
+  width: 68px;
+  height: 68px;
+  font-size: 26px;
+}
+
+.p-card-name {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.p-card-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.p-card-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.p-card-percent {
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: right;
+}
+
+.p-card-flags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.progress-bar-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--track-bg);
+  overflow: hidden;
+}
+
+.progress-bar-track.small {
+  height: 7px;
+  margin: 8px 0 10px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* ============================================================
+   RING SVG
+   ============================================================ */
+.ring-progress {
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+/* ============================================================
+   PARTICIPANT SWITCHER
+   ============================================================ */
+.switcher-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.switch-pill {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(120, 120, 128, 0.1);
+  border: 1.5px solid transparent;
+  color: var(--text-primary);
+  transition: all 0.18s ease;
+}
+
+.switch-pill.active {
+  color: white;
+}
+
+/* ============================================================
+   TASK LIST
+   ============================================================ */
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-left: 4px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.status-border-overdue { border-left-color: var(--red); }
+.status-border-soon { border-left-color: var(--yellow); }
+.status-border-done { border-left-color: var(--green); }
+.status-border-ok { border-left-color: rgba(120,120,128,0.25); }
+.status-border-none { border-left-color: rgba(120,120,128,0.25); }
+
+.task-check-wrap { flex-shrink: 0; padding-top: 2px; }
+
+.checkbox {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 2px solid rgba(120, 120, 128, 0.35);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 15px;
+  transition: all 0.15s ease;
+}
+
+.checkbox.checked {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.task-body { flex: 1; min-width: 0; }
+
+.task-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-title {
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.task-title-done {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: rgba(110,110,115,0.5);
+}
+
+.task-qty {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.task-note {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.status-chip {
+  margin-top: 8px;
+}
+
+.status-done { background: rgba(48, 209, 88, 0.14); color: #1B7F35; }
+.status-overdue { background: rgba(255, 69, 58, 0.14); color: #D70015; }
+.status-soon { background: rgba(255, 214, 10, 0.22); color: #8A6100; }
+.status-ok { background: rgba(120,120,128,0.12); color: var(--text-secondary); }
+.status-none { background: rgba(120,120,128,0.08); color: var(--text-secondary); }
+
+.task-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.stepper-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(10, 132, 255, 0.12);
+  color: var(--blue);
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.stepper-btn:active { transform: scale(0.9); }
+.stepper-btn:disabled { opacity: 0.35; cursor: default; }
+.stepper-btn:not(:disabled):hover { background: rgba(10, 132, 255, 0.22); }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 560px) {
+  .hero-card { flex-direction: column; align-items: flex-start; padding: 22px; }
+  .hero-right { align-self: center; }
+  .hero-percent { font-size: 42px; }
+  .cards-grid { grid-template-columns: 1fr; }
+  .participant-hero .hero-left { flex-direction: column; align-items: flex-start; }
+  .podium { grid-template-columns: 1fr; gap: 12px; }
+  .podium-rank-1, .podium-rank-2, .podium-rank-3 { order: initial; padding: 20px 14px; }
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.footer-note {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  margin-top: 40px;
+}
