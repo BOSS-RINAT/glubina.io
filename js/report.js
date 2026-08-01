@@ -4,6 +4,7 @@
 
 let reportParticipants = [];
 let reportSettings = SEED_SETTINGS;
+let reportDayScoreOverrides = {};
 let selectedDateKey = mskDateKey();
 
 function pointsWord(n) {
@@ -35,36 +36,47 @@ async function buildReportText() {
     }
   });
 
-  let total = 0;
+  let goalsPoints = 0;
+  let engagementPoints = 0;
   const lines = [];
 
-  // сохраняем порядок участников как на дашборде
+  // сохраняем порядок участников как на дашборде — но в отчёте только
+  // полностью закрытые цели, шаги/промежуточный прогресс не показываем
   reportParticipants.forEach(p => {
     const bucket = byParticipant[p.id];
     if (!bucket) return;
     const personLines = [];
 
     Object.values(bucket.tasks).forEach(t => {
-      if (t.netDelta === 0) return; // отметили и сняли — не показываем
+      if (t.netDelta <= 0) return; // сняли прогресс или не менялось — не показываем
       const isDone = t.lastValue >= t.qty;
-      if (isDone && t.netDelta > 0) {
+      if (isDone) {
         const pts = reportSettings.pointsPerTask;
-        total += pts;
+        goalsPoints += pts;
         personLines.push(`✅ ${p.name} ${t.text} — ${pts} ${pointsWord(pts)}`);
-      } else if (t.netDelta > 0) {
-        personLines.push(`▫️ ${p.name} Шаг +${t.netDelta} (${t.text}) — ${t.lastValue}/${t.qty}`);
       }
-      // netDelta < 0 (сняли прогресс, но не до нуля от начала дня) — не отражаем в отчёте
+      // незавершённые шаги в отчёт больше не попадают
     });
 
     if (bucket.engagementDelta > 0) {
       const pts = bucket.engagementDelta * reportSettings.pointsPerEngagement;
-      total += pts;
+      engagementPoints += pts;
       personLines.push(`🤝 ${p.name} Вовлечение: ${bucket.engagementDelta} человек — ${pts} ${pointsWord(pts)}`);
     }
 
     lines.push(...personLines);
   });
+
+  // % выполнения задач командой за день (старт → сейчас), 1% = pointsPerPercent баллов
+  const auto = await computeAutoDayScore(selectedDateKey, reportParticipants, reportSettings);
+  const override = reportDayScoreOverrides[selectedDateKey];
+  const eff = effectiveDayScore(auto, override);
+
+  const percentLine = `📈 % выполнения задач командой: ${auto.startPercent}% → ${auto.endPercent}% (Δ ${auto.endPercent - auto.startPercent}%) — ${eff.percentPoints} ${pointsWord(eff.percentPoints)}${eff.percentIsOverride ? ' (ручное значение)' : ''}`;
+
+  const finalGoals = eff.goalsIsOverride ? eff.goalsPoints : goalsPoints;
+  const finalEngagement = eff.engagementIsOverride ? eff.engagementPoints : engagementPoints;
+  const total = Math.round((finalGoals + eff.percentPoints + finalEngagement) * 100) / 100;
 
   const avg = Math.round((total / (reportSettings.participantsCount || 1)) * 100) / 100;
   const dateLabel = mskDateLabel(selectedDateKey);
@@ -75,8 +87,10 @@ async function buildReportText() {
     `${reportSettings.reportAuthorName || ''} ${dateLabel}`.trim(),
     `Роль на сегодня: ${reportSettings.roleToday || '—'}`,
     'Отчёт:',
-    lines.length ? lines.join('\n') : '(пока нет изменений за этот день)',
+    lines.length ? lines.join('\n') : '(пока нет закрытых целей за этот день)',
+    percentLine,
     '',
+    `Цели: ${finalGoals}${eff.goalsIsOverride ? ' (ручное значение)' : ''} + % выполнения: ${eff.percentPoints} + Вовлечение: ${finalEngagement}${eff.engagementIsOverride ? ' (ручное значение)' : ''}`,
     `Итого баллов за день команды: ${total} ${pointsWord(total)}.`,
     `Средний балл: ${avg} ${pointsWord(Math.round(avg))} (÷${reportSettings.participantsCount})`,
   ];
@@ -152,6 +166,15 @@ document.addEventListener('DOMContentLoaded', () => {
       reportSettings = s;
       const roleInput = document.getElementById('report-role');
       if (roleInput && document.activeElement !== roleInput) roleInput.value = s.roleToday || '';
+    });
+    subscribeDayScores(map => {
+      reportDayScoreOverrides = map;
+      if (document.getElementById('report-text')) refreshReportText();
+    });
+    subscribeProgress(() => {
+      // прогресс изменился где-то ещё (например, участник отметил задачу) —
+      // если сейчас открыт отчёт за сегодня, пересчитываем его вживую
+      if (selectedDateKey === mskDateKey() && document.getElementById('report-text')) refreshReportText();
     });
     renderReportPage();
   });

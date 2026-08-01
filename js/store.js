@@ -64,7 +64,10 @@ function subscribeProgress(cb) {
 
 function subscribeSettings(cb) {
   return db.collection('config').doc('settings').onSnapshot(snap => {
-    cb(snap.exists ? snap.data() : SEED_SETTINGS);
+    // Мерджим с SEED_SETTINGS, чтобы новые поля настроек, добавленные уже
+    // после первого запуска сайта, всегда имели безопасное значение по
+    // умолчанию, даже если в самом документе Firestore их ещё нет.
+    cb(snap.exists ? { ...SEED_SETTINGS, ...snap.data() } : SEED_SETTINGS);
   }, err => console.error('settings listener error:', err));
 }
 
@@ -101,6 +104,7 @@ async function setTaskCount(participant, task, newValue) {
     prevValue, newValue: clamped,
     delta: clamped - prevValue,
   });
+  invalidatePercentEventsCache();
 }
 
 async function setEngagement(participant, newValue) {
@@ -204,6 +208,126 @@ async function undoEvent(ev) {
     prevValue: ev.newValue,
     newValue: ev.prevValue,
   });
+  invalidatePercentEventsCache();
+}
+
+// ---------- % выполнения задач командой на конец произвольной даты ----------
+// (обобщение "снимка на вчера": реплеим события до конца dateKey включительно)
+
+let _percentEventsCache = null; // все task-события, читаются один раз и кэшируются
+async function _loadAllTaskEvents() {
+  if (_percentEventsCache) return _percentEventsCache;
+  const snap = await db.collection('events').orderBy('ts', 'asc').get();
+  const list = [];
+  snap.forEach(doc => list.push(doc.data()));
+  _percentEventsCache = list;
+  return list;
+}
+function invalidatePercentEventsCache() { _percentEventsCache = null; }
+
+async function computeGroupPercentAsOf(dateKey, participants) {
+  const events = await _loadAllTaskEvents();
+  const lastTaskValue = {};
+
+  events.forEach(ev => {
+    if (!ev.dateKey || ev.dateKey > dateKey || !ev.participantId) return;
+    if (ev.kind === 'task') {
+      lastTaskValue[`${ev.participantId}__${ev.taskId}`] = ev.newValue;
+    } else if (ev.kind === 'undo' && ev.undoOf === 'task') {
+      lastTaskValue[`${ev.participantId}__${ev.taskId}`] = ev.newValue;
+    }
+  });
+
+  let fractionSum = 0, totalTasks = 0;
+  participants.forEach(p => {
+    p.tasks.forEach(t => {
+      totalTasks++;
+      const val = lastTaskValue[`${p.id}__${t.id}`] || 0;
+      fractionSum += Math.min(val, t.qty) / t.qty;
+    });
+  });
+  return totalTasks ? Math.round((fractionSum / totalTasks) * 100) : 0;
+}
+
+function previousDateKey(dateKey) {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const dt = new Date(y, m - 1, d - 1);
+  return mskDateKey(dt);
+}
+
+// ---------- архив дневных баллов (Цели / % / Вовлечение по дням) ----------
+// dayScores/{dateKey}: { goalsPoints, percentPoints, engagementPoints,
+//                         goalsOverride, percentOverride, engagementOverride (bool) }
+// Авто-значения считаются на лету из событий; override-флаги говорят,
+// что число в документе — ручная правка админа, а не авторасчёт.
+
+function subscribeDayScores(cb) {
+  return db.collection('dayScores').onSnapshot(snap => {
+    const map = {};
+    snap.forEach(doc => map[doc.id] = doc.data());
+    cb(map);
+  }, err => console.error('dayScores listener error:', err));
+}
+
+async function setDayScoreOverride(dateKey, field, value) {
+  await db.collection('dayScores').doc(dateKey).set({
+    [field]: value,
+    [`${field}Override`]: true,
+  }, { merge: true });
+}
+
+async function clearDayScoreOverride(dateKey, field) {
+  await db.collection('dayScores').doc(dateKey).set({
+    [`${field}Override`]: false,
+  }, { merge: true });
+}
+
+// авто-расчёт баллов за день (без учёта override) — цели и вовлечение из событий,
+// % — из дельты между концом предыдущего дня и концом этого дня
+async function computeAutoDayScore(dateKey, participants, settings) {
+  const events = await getEventsForDate(dateKey);
+  let goalsPoints = 0, engagementPoints = 0;
+
+  const taskLastValue = {}; // `${pid}__${taskId}` -> { wasDone, nowDone }
+  events.forEach(ev => {
+    if (ev.kind === 'task') {
+      const key = `${ev.participantId}__${ev.taskId}`;
+      if (!taskLastValue[key]) taskLastValue[key] = { wasDone: ev.prevValue >= ev.qty, nowDone: ev.newValue >= ev.qty };
+      else taskLastValue[key].nowDone = ev.newValue >= ev.qty;
+    } else if (ev.kind === 'engagement') {
+      engagementPoints += ev.delta * settings.pointsPerEngagement;
+    }
+  });
+  Object.values(taskLastValue).forEach(t => {
+    if (!t.wasDone && t.nowDone) goalsPoints += settings.pointsPerTask;
+    else if (t.wasDone && !t.nowDone) goalsPoints -= settings.pointsPerTask;
+  });
+
+  const startPercent = await computeGroupPercentAsOf(previousDateKey(dateKey), participants);
+  const endPercent = await computeGroupPercentAsOf(dateKey, participants);
+  const percentPoints = Math.round((endPercent - startPercent) * settings.pointsPerPercent);
+
+  return {
+    goalsPoints: Math.round(goalsPoints * 100) / 100,
+    percentPoints,
+    engagementPoints: Math.round(engagementPoints * 100) / 100,
+    startPercent, endPercent,
+  };
+}
+
+// сводит авто-расчёт и override в один объект эффективных значений
+function effectiveDayScore(auto, override) {
+  const o = override || {};
+  return {
+    goalsPoints: o.goalsOverride ? o.goalsPoints : auto.goalsPoints,
+    percentPoints: o.percentOverride ? o.percentPoints : auto.percentPoints,
+    engagementPoints: o.engagementOverride ? o.engagementPoints : auto.engagementPoints,
+    goalsIsOverride: !!o.goalsOverride,
+    percentIsOverride: !!o.percentOverride,
+    engagementIsOverride: !!o.engagementOverride,
+    startPercent: auto.startPercent,
+    endPercent: auto.endPercent,
+  };
 }
 
 // глобальный кэш последнего известного прогресса — нужен для вычисления

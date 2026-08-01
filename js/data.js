@@ -157,11 +157,14 @@ const SEED_SETTINGS = {
   tournamentName: 'Базовый лагерь',
   pointsPerTask: 2,
   pointsPerEngagement: 3,
+  pointsPerPercent: 1, // баллы за каждый 1% прироста общего выполнения задач командой за день
   participantsCount: 6,
   editLocked: false,       // true = участники не могут редактировать свои задачи
   roleToday: '',           // "Роль на сегодня" в отчёте — редактируется на странице отчёта
   reportAuthorName: 'Ринат', // имя автора отчёта (строка "Ринат 01.08")
   reportTitleTemplate: 'Отчёт по турниру "{tournament}"',
+  scoreBaselineAdjustment: 0, // ручная корректировка суммарного балла группы (может быть отрицательной)
+  allowPartialStepPoints: false, // true = шаговые задачи начисляют пропорциональные баллы (7/10 → 70% от pointsPerTask). По умолчанию выключено — баллы только за полностью закрытые цели.
 };
 
 // Логины для входа (используются только на странице setup.html для

@@ -107,7 +107,12 @@ function participantStats(participant) {
   const engagementMin = participant.engagementMin || 0;
   const engagementMet = engagement >= engagementMin;
 
-  const score = doneCount * SETTINGS.pointsPerTask + engagement * SETTINGS.pointsPerEngagement;
+  // Баллы за задачи: либо только за полностью закрытые цели (по умолчанию),
+  // либо пропорционально прогрессу шаговых задач — переключается в настройках.
+  const taskPoints = SETTINGS.allowPartialStepPoints
+    ? fractionSum * SETTINGS.pointsPerTask
+    : doneCount * SETTINGS.pointsPerTask;
+  const score = Math.round((taskPoints + engagement * SETTINGS.pointsPerEngagement) * 100) / 100;
 
   return {
     percent, total, doneCount, overdue, soon, fractionSum,
@@ -149,6 +154,10 @@ function groupStats() {
   const engagementPercent = totalEngagementMin
     ? Math.round((totalEngagement / totalEngagementMin) * 100)
     : 0;
+  // Ручная корректировка (настройки → «Ручная корректировка суммарного балла»)
+  // применяется только к общему баллу группы, не к баллам конкретных
+  // участников в рейтинге — чтобы не искажать честное сравнение между ними.
+  totalScore = Math.round((totalScore + (SETTINGS.scoreBaselineAdjustment || 0)) * 100) / 100;
   const participantsCount = SETTINGS.participantsCount || PARTICIPANTS.length || 1;
   const avgScore = Math.round((totalScore / participantsCount) * 100) / 100;
 
@@ -157,6 +166,70 @@ function groupStats() {
 
 function initials(name) {
   return name.trim()[0].toUpperCase();
+}
+
+// ---------- динамика "с вчера" (кружки на дашборде) ----------
+
+let yesterdaySnapshotCache = null; // { dateKey, percent, engagementPercent }
+
+async function computeYesterdaySnapshot() {
+  const yesterdayKey = mskDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  if (yesterdaySnapshotCache && yesterdaySnapshotCache.dateKey === yesterdayKey) {
+    return yesterdaySnapshotCache;
+  }
+
+  const snap = await db.collection('events').orderBy('ts', 'asc').get();
+  const lastTaskValue = {};
+  const lastEngValue = {};
+
+  snap.forEach(doc => {
+    const ev = doc.data();
+    if (!ev.dateKey || ev.dateKey > yesterdayKey || !ev.participantId) return;
+    if (ev.kind === 'task') {
+      lastTaskValue[`${ev.participantId}__${ev.taskId}`] = ev.newValue;
+    } else if (ev.kind === 'engagement') {
+      lastEngValue[ev.participantId] = ev.newValue;
+    } else if (ev.kind === 'undo') {
+      if (ev.undoOf === 'task') lastTaskValue[`${ev.participantId}__${ev.taskId}`] = ev.newValue;
+      else if (ev.undoOf === 'engagement') lastEngValue[ev.participantId] = ev.newValue;
+    }
+  });
+
+  let fractionSum = 0, totalTasks = 0, engagementSum = 0, engagementMinSum = 0;
+  PARTICIPANTS.forEach(p => {
+    p.tasks.forEach(t => {
+      totalTasks++;
+      const val = lastTaskValue[`${p.id}__${t.id}`] || 0;
+      fractionSum += Math.min(val, t.qty) / t.qty;
+    });
+    engagementSum += lastEngValue[p.id] || 0;
+    engagementMinSum += p.engagementMin || 0;
+  });
+
+  yesterdaySnapshotCache = {
+    dateKey: yesterdayKey,
+    percent: totalTasks ? Math.round((fractionSum / totalTasks) * 100) : 0,
+    engagementPercent: engagementMinSum ? Math.round((engagementSum / engagementMinSum) * 100) : 0,
+  };
+  return yesterdaySnapshotCache;
+}
+
+function deltaBadgeHtml(diff) {
+  if (diff > 0) return `<span class="stat-delta-up">▲ +${diff}% с вчера</span>`;
+  if (diff < 0) return `<span class="stat-delta-down">▼ ${diff}% с вчера</span>`;
+  return `<span class="stat-delta-flat">• без изменений с вчера</span>`;
+}
+
+async function attachYesterdayDeltas(gStats) {
+  try {
+    const y = await computeYesterdaySnapshot();
+    const elPercent = document.getElementById('delta-percent');
+    const elEngagement = document.getElementById('delta-engagement');
+    if (elPercent) elPercent.innerHTML = deltaBadgeHtml(gStats.percent - y.percent);
+    if (elEngagement) elEngagement.innerHTML = deltaBadgeHtml(gStats.engagementPercent - y.engagementPercent);
+  } catch (err) {
+    console.error('Не удалось посчитать динамику с вчера:', err);
+  }
 }
 
 function medalFor(rank) {
@@ -214,6 +287,7 @@ function renderDashboard() {
           <div class="hero-label">Прогресс группы</div>
           <div class="stat-value">${gStats.percent}%</div>
           <div class="hero-sub">${gStats.totalTasks} задач · ${PARTICIPANTS.length} участников</div>
+          <div class="stat-delta" id="delta-percent">&nbsp;</div>
         </div>
         <div class="stat-card-ring">
           ${ringSVG(gStats.percent, 84, 8, '#0A84FF')}
@@ -226,6 +300,7 @@ function renderDashboard() {
           <div class="hero-label">Вовлечение группы</div>
           <div class="stat-value">${gStats.totalEngagement}<span class="stat-value-of">/${gStats.totalEngagementMin}</span></div>
           <div class="hero-sub">минимум по группе</div>
+          <div class="stat-delta" id="delta-engagement">&nbsp;</div>
         </div>
         <div class="stat-card-ring">
           ${ringSVG(gStats.engagementPercent, 84, 8, '#BF5AF2')}
@@ -233,7 +308,7 @@ function renderDashboard() {
         </div>
       </a>
 
-      <a href="charts.html?metric=score" class="stat-card glass stat-card-score stat-card-link">
+      <a href="points-history.html" class="stat-card glass stat-card-score stat-card-link">
         <div class="stat-card-text">
           <div class="hero-label">Суммарный балл группы</div>
           <div class="stat-value">${gStats.totalScore}</div>
@@ -244,7 +319,7 @@ function renderDashboard() {
       </a>
     </div>
 
-    <div class="task-note" style="text-align:center;margin:-10px 0 16px">Нажмите на плитку, чтобы открыть график динамики 📈</div>
+    <div class="task-note" style="text-align:center;margin:-10px 0 16px">Нажмите на плитку прогресса/вовлечения — график 📈, на баллы — история начислений 📜</div>
 
     <div class="group-alerts group-alerts-top">
       ${gStats.overdue ? `<span class="chip chip-red">🔴 просрочено: ${gStats.overdue}</span>` : `<span class="chip chip-green">✅ всё в графике</span>`}
@@ -254,6 +329,9 @@ function renderDashboard() {
     <h2 class="section-title">Рейтинг участников</h2>
     <div class="rank-list" id="rank-list"></div>
   `;
+
+  attachYesterdayDeltas(gStats);
+
 
   const list = document.getElementById('rank-list');
   list.innerHTML = '';
@@ -512,13 +590,23 @@ function openTaskForm(task, participant) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const isNew = !task;
+  const initialQty = task ? task.qty : 1;
+  const initialStepMode = initialQty > 1;
   overlay.innerHTML = `
     <div class="modal-card glass">
       <div class="modal-title">${isNew ? 'Новая задача' : 'Редактировать задачу'}</div>
       <label class="login-label">Текст задачи</label>
       <input id="tf-text" class="login-input" value="${task ? task.text.replace(/"/g, '&quot;') : ''}" />
-      <label class="login-label">Количество (для составных задач, обычно 1)</label>
-      <input id="tf-qty" class="login-input" type="number" min="1" value="${task ? task.qty : 1}" />
+
+      <label class="login-checkbox-row">
+        <input id="tf-step-mode" type="checkbox" ${initialStepMode ? 'checked' : ''} />
+        Пошаговая задача (можно закрывать по частям, кнопками + / −)
+      </label>
+      <div id="tf-qty-wrap" style="${initialStepMode ? '' : 'display:none'}">
+        <label class="login-label">Количество шагов до полного закрытия</label>
+        <input id="tf-qty" class="login-input" type="number" min="2" value="${initialStepMode ? initialQty : 2}" />
+      </div>
+
       <label class="login-label">Дедлайн (можно оставить пустым)</label>
       <input id="tf-deadline" class="login-input" type="date" value="${task && task.deadline ? task.deadline : ''}" />
       <label class="login-label">Заметка (необязательно)</label>
@@ -534,12 +622,16 @@ function openTaskForm(task, participant) {
   `;
   document.body.appendChild(overlay);
 
+  overlay.querySelector('#tf-step-mode').addEventListener('change', e => {
+    overlay.querySelector('#tf-qty-wrap').style.display = e.target.checked ? '' : 'none';
+  });
+
   overlay.querySelector('#tf-cancel').addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
   if (!isNew) {
     overlay.querySelector('#tf-delete').addEventListener('click', async () => {
-      if (!confirm('Удалить эту задачу?')) return;
+      if (!confirm('Удалить эту задачу? Это действие нельзя отменить.')) return;
       await deleteTask(participant, task.id);
       overlay.remove();
     });
@@ -547,7 +639,10 @@ function openTaskForm(task, participant) {
 
   overlay.querySelector('#tf-save').addEventListener('click', async () => {
     const text = overlay.querySelector('#tf-text').value.trim();
-    const qty = Math.max(1, parseInt(overlay.querySelector('#tf-qty').value, 10) || 1);
+    const stepMode = overlay.querySelector('#tf-step-mode').checked;
+    const qty = stepMode
+      ? Math.max(2, parseInt(overlay.querySelector('#tf-qty').value, 10) || 2)
+      : 1;
     const deadline = overlay.querySelector('#tf-deadline').value || null;
     const note = overlay.querySelector('#tf-note').value.trim();
     if (!text) { alert('Введите текст задачи'); return; }

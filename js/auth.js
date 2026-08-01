@@ -161,9 +161,11 @@ function renderNav() {
     links.push(`<a href="index.html" class="nav-link">📊 Дашборд</a>`);
   }
   links.push(`<a href="charts.html" class="nav-link">📈 Графики</a>`);
+  links.push(`<a href="points-history.html" class="nav-link">📜 Баллы</a>`);
+  links.push(`<a href="daily-scores.html" class="nav-link">🗓️ Баллы по дням</a>`);
   if (currentUser.role === 'admin') {
     links.push(`<a href="report.html" class="nav-link">📝 Отчёт дня</a>`);
-    links.push(`<a href="journal.html" class="nav-link">📜 Журнал</a>`);
+    links.push(`<a href="journal.html" class="nav-link">📓 Журнал</a>`);
     links.push(`<a href="settings.html" class="nav-link">⚙️ Настройки</a>`);
   }
   links.push(`<a href="game.html" class="nav-link">🎮 Игра</a>`);

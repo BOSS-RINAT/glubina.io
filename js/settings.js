@@ -20,6 +20,9 @@ function renderSettingsPage(settings) {
       <label class="login-label">Баллы за одно вовлечение</label>
       <input id="st-points-eng" class="login-input" type="number" min="0" value="${settings.pointsPerEngagement}" />
 
+      <label class="login-label">Баллы за каждый 1% прироста выполнения задач командой за день</label>
+      <input id="st-points-percent" class="login-input" type="number" min="0" value="${settings.pointsPerPercent ?? 1}" />
+
       <label class="login-label">Количество участников (для среднего балла)</label>
       <input id="st-count" class="login-input" type="number" min="1" value="${settings.participantsCount}" />
 
@@ -27,6 +30,20 @@ function renderSettingsPage(settings) {
         <input id="st-locked" type="checkbox" ${settings.editLocked ? 'checked' : ''} />
         Запретить участникам редактировать свои задачи (только просмотр и отметки выполнения)
       </label>
+
+      <label class="login-checkbox-row">
+        <input id="st-partial-steps" type="checkbox" ${settings.allowPartialStepPoints ? 'checked' : ''} />
+        Начислять баллы за частичное выполнение шаговых задач (например, 7 из 10 → 70% от баллов за задачу).
+        Если выключено (по умолчанию) — баллы дают только полностью закрытые цели.
+      </label>
+
+      <label class="login-label">Ручная корректировка суммарного балла группы</label>
+      <input id="st-baseline" class="login-input" type="number" value="${settings.scoreBaselineAdjustment || 0}" />
+      <p class="task-note" style="margin:-4px 0 0">
+        Прибавляется (или вычитается, если отрицательное) к общему баллу команды на дашборде и в истории баллов —
+        удобно, если нужно сдвинуть точку отсчёта, не трогая сами задачи. На баллы конкретных участников
+        в рейтинге не влияет.
+      </p>
 
       <button id="st-save" class="modal-btn modal-btn-primary">Сохранить настройки</button>
       <div id="st-msg" class="report-copy-msg"></div>
@@ -49,8 +66,11 @@ function renderSettingsPage(settings) {
       reportAuthorName: document.getElementById('st-author').value.trim(),
       pointsPerTask: parseFloat(document.getElementById('st-points-task').value) || 0,
       pointsPerEngagement: parseFloat(document.getElementById('st-points-eng').value) || 0,
+      pointsPerPercent: parseFloat(document.getElementById('st-points-percent').value) || 0,
       participantsCount: parseInt(document.getElementById('st-count').value, 10) || 1,
       editLocked: document.getElementById('st-locked').checked,
+      allowPartialStepPoints: document.getElementById('st-partial-steps').checked,
+      scoreBaselineAdjustment: parseFloat(document.getElementById('st-baseline').value) || 0,
     };
     await updateSettings(fields);
     const msg = document.getElementById('st-msg');
