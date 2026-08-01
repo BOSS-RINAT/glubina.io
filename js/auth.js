@@ -158,6 +158,7 @@ function renderNav() {
   links.push(`<a href="index.html" class="nav-link">Дашборд</a>`);
   if (currentUser.role === 'admin') {
     links.push(`<a href="report.html" class="nav-link">Отчёт дня</a>`);
+    links.push(`<a href="journal.html" class="nav-link">Журнал</a>`);
     links.push(`<a href="settings.html" class="nav-link">Настройки</a>`);
   }
   links.push(`<button id="logout-btn" class="nav-link nav-link-btn">Выход (${currentUser.displayName})</button>`);

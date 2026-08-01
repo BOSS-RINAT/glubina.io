@@ -180,6 +180,32 @@ async function getEventsForDate(dateKey) {
   return list;
 }
 
+// ---------- отмена действия из журнала (только task / engagement) ----------
+
+async function undoEvent(ev) {
+  if (ev.kind === 'task') {
+    await db.collection('progress').doc(ev.participantId).set({
+      counts: { [ev.taskId]: ev.prevValue }
+    }, { merge: true });
+  } else if (ev.kind === 'engagement') {
+    await db.collection('progress').doc(ev.participantId).set({
+      engagement: ev.prevValue
+    }, { merge: true });
+  } else {
+    throw new Error('Это действие нельзя отменить автоматически');
+  }
+  await logEvent({
+    kind: 'undo',
+    participantId: ev.participantId,
+    participantName: ev.participantName,
+    undoOf: ev.kind,
+    taskId: ev.taskId || null,
+    taskText: ev.taskText || null,
+    prevValue: ev.newValue,
+    newValue: ev.prevValue,
+  });
+}
+
 // глобальный кэш последнего известного прогресса — нужен для вычисления
 // prevValue без лишнего чтения из базы
 let progressCache = {};
