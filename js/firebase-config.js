@@ -35,10 +35,10 @@
 // работает через интернет, а не через локальную сеть.
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAD4_cHxXBFXOYctD-hp0s3xQU0YCNWDgU",
+  authDomain: "glubina-01.firebaseapp.com",
+  projectId: "glubina-01",
+  storageBucket: "glubina-01.firebasestorage.app",
+  messagingSenderId: "669048160242",
+  appId: "1:669048160242:web:3f708f162f572c5e06756b"
 };
