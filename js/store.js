@@ -330,6 +330,32 @@ function effectiveDayScore(auto, override) {
   };
 }
 
+// ---------- суммарный %-бонус за всё время (для дашборда и "Баллов") ----------
+
+async function computeCumulativePercentBonus(participants, settings) {
+  const eventsSnap = await db.collection('events').get();
+  const dateKeys = new Set();
+  eventsSnap.forEach(doc => { const dk = doc.data().dateKey; if (dk) dateKeys.add(dk); });
+  dateKeys.add(mskDateKey());
+
+  const overridesSnap = await db.collection('dayScores').get();
+  const overrides = {};
+  overridesSnap.forEach(doc => overrides[doc.id] = doc.data());
+
+  let sum = 0;
+  for (const dk of dateKeys) {
+    const o = overrides[dk];
+    if (o && o.percentOverride) {
+      sum += o.percentPoints || 0;
+    } else {
+      const startPercent = await computeGroupPercentAsOf(previousDateKey(dk), participants);
+      const endPercent = await computeGroupPercentAsOf(dk, participants);
+      sum += Math.round((endPercent - startPercent) * settings.pointsPerPercent);
+    }
+  }
+  return Math.round(sum * 100) / 100;
+}
+
 // глобальный кэш последнего известного прогресса — нужен для вычисления
 // prevValue без лишнего чтения из базы
 let progressCache = {};

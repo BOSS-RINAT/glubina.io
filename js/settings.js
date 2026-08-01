@@ -37,8 +37,11 @@ function renderSettingsPage(settings) {
         Если выключено (по умолчанию) — баллы дают только полностью закрытые цели.
       </label>
 
-      <label class="login-label">Ручная корректировка суммарного балла группы</label>
-      <input id="st-baseline" class="login-input" type="number" value="${settings.scoreBaselineAdjustment || 0}" />
+      <label class="login-label">Ручная корректировка баллов за Цели</label>
+      <input id="st-baseline-goals" class="login-input" type="number" value="${settings.scoreBaselineAdjustmentGoals || 0}" />
+
+      <label class="login-label">Ручная корректировка баллов за %</label>
+      <input id="st-baseline-percent" class="login-input" type="number" value="${settings.scoreBaselineAdjustmentPercent || 0}" />
       <p class="task-note" style="margin:-4px 0 0">
         Прибавляется (или вычитается, если отрицательное) к общему баллу команды на дашборде и в истории баллов —
         удобно, если нужно сдвинуть точку отсчёта, не трогая сами задачи. На баллы конкретных участников
@@ -70,7 +73,8 @@ function renderSettingsPage(settings) {
       participantsCount: parseInt(document.getElementById('st-count').value, 10) || 1,
       editLocked: document.getElementById('st-locked').checked,
       allowPartialStepPoints: document.getElementById('st-partial-steps').checked,
-      scoreBaselineAdjustment: parseFloat(document.getElementById('st-baseline').value) || 0,
+      scoreBaselineAdjustmentGoals: parseFloat(document.getElementById('st-baseline-goals').value) || 0,
+      scoreBaselineAdjustmentPercent: parseFloat(document.getElementById('st-baseline-percent').value) || 0,
     };
     await updateSettings(fields);
     const msg = document.getElementById('st-msg');

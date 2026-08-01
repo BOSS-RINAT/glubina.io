@@ -157,7 +157,7 @@ function groupStats() {
   // Ручная корректировка (настройки → «Ручная корректировка суммарного балла»)
   // применяется только к общему баллу группы, не к баллам конкретных
   // участников в рейтинге — чтобы не искажать честное сравнение между ними.
-  totalScore = Math.round((totalScore + (SETTINGS.scoreBaselineAdjustment || 0)) * 100) / 100;
+  totalScore = Math.round((totalScore + (SETTINGS.scoreBaselineAdjustmentGoals || 0)) * 100) / 100;
   const participantsCount = SETTINGS.participantsCount || PARTICIPANTS.length || 1;
   const avgScore = Math.round((totalScore / participantsCount) * 100) / 100;
 
@@ -229,6 +229,23 @@ async function attachYesterdayDeltas(gStats) {
     if (elEngagement) elEngagement.innerHTML = deltaBadgeHtml(gStats.engagementPercent - y.engagementPercent);
   } catch (err) {
     console.error('Не удалось посчитать динамику с вчера:', err);
+  }
+}
+
+async function attachPercentBonus(gStats) {
+  try {
+    const bonus = await computeCumulativePercentBonus(PARTICIPANTS, SETTINGS);
+    const finalBonus = Math.round((bonus + (SETTINGS.scoreBaselineAdjustmentPercent || 0)) * 100) / 100;
+    const grandTotal = Math.round((gStats.totalScore + finalBonus) * 100) / 100;
+    const participantsCount = SETTINGS.participantsCount || PARTICIPANTS.length || 1;
+    const avg = Math.round((grandTotal / participantsCount) * 100) / 100;
+
+    const valueEl = document.getElementById('total-score-value');
+    const avgEl = document.getElementById('total-score-avg');
+    if (valueEl) valueEl.textContent = grandTotal;
+    if (avgEl) avgEl.innerHTML = `Средний балл на игрока: <b>${avg}</b> (÷${participantsCount}) · вкл. +${finalBonus} за %`;
+  } catch (err) {
+    console.error('Не удалось посчитать %-бонус для общего балла:', err);
   }
 }
 
@@ -311,9 +328,9 @@ function renderDashboard() {
       <a href="points-history.html" class="stat-card glass stat-card-score stat-card-link">
         <div class="stat-card-text">
           <div class="hero-label">Суммарный балл группы</div>
-          <div class="stat-value">${gStats.totalScore}</div>
-          <div class="hero-sub">${SETTINGS.pointsPerTask} балла / задача · ${SETTINGS.pointsPerEngagement} балла / вовлечение</div>
-          <div class="hero-sub">Средний балл на игрока: <b>${gStats.avgScore}</b> (÷${SETTINGS.participantsCount})</div>
+          <div class="stat-value" id="total-score-value">${gStats.totalScore}</div>
+          <div class="hero-sub">${SETTINGS.pointsPerTask} балла / задача · ${SETTINGS.pointsPerEngagement} балла / вовлечение · ${SETTINGS.pointsPerPercent} балл / % команды</div>
+          <div class="hero-sub" id="total-score-avg">Средний балл на игрока: <b>${gStats.avgScore}</b> (÷${SETTINGS.participantsCount})</div>
         </div>
         <div class="stat-card-icon">🏆</div>
       </a>
@@ -331,6 +348,7 @@ function renderDashboard() {
   `;
 
   attachYesterdayDeltas(gStats);
+  attachPercentBonus(gStats);
 
 
   const list = document.getElementById('rank-list');
