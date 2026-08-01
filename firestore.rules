@@ -54,12 +54,20 @@ service cloud.firestore {
         (isSignedIn() && myParticipantId() == pid && myRole() != 'guest');
     }
 
-    // Журнал событий (для отчёта дня и будущего админ-журнала).
+    // Журнал событий (для отчёта дня и админ-журнала).
     // Записи никогда не редактируются и не удаляются — только добавляются.
     match /events/{eid} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && myRole() != 'guest';
       allow update, delete: if false;
+    }
+
+    // Архив дневных баллов (Цели / % / Вовлечение по дням). Читать может
+    // любой вошедший (команда видит архив), редактировать (ручные
+    // корректировки) — только админ.
+    match /dayScores/{dateKey} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }
