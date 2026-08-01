@@ -62,12 +62,43 @@ function logout() {
   auth.signOut();
 }
 
+// ---------- показ ошибки прямо на экране (вместо тихого console.error) ----------
+
+function showFatalError(title, detail) {
+  const gate = document.getElementById('auth-gate');
+  const appRoot = document.getElementById('app-root');
+  if (appRoot) appRoot.style.display = 'none';
+  if (gate) {
+    gate.style.display = 'block';
+    gate.innerHTML = `<div class="login-wrap"><div class="login-card glass">
+      <div class="login-title">⚠️ ${title}</div>
+      <div class="login-sub" style="word-break:break-word">${detail || ''}</div>
+      <button class="login-btn" id="fatal-retry-btn">Обновить страницу</button>
+    </div></div>`;
+    const btn = gate.querySelector('#fatal-retry-btn');
+    if (btn) btn.addEventListener('click', () => location.reload());
+  }
+}
+
 // Инициализация: слушаем состояние входа, подтягиваем роль из users/{uid}
 function initAuth() {
+  console.log('[mm] initAuth: старт');
   const gate = document.getElementById('auth-gate');
   const appRoot = document.getElementById('app-root');
 
+  // Если за 10 секунд auth вообще не ответил (нет ни user, ни null) — показываем ошибку,
+  // а не бесконечно пустой экран.
+  const authTimeout = setTimeout(() => {
+    console.error('[mm] onAuthStateChanged не ответил за 10с');
+    showFatalError(
+      'Не удалось связаться с Firebase',
+      'Проверьте интернет-соединение и что домен сайта добавлен в Firebase → Authentication → Settings → Authorized domains.'
+    );
+  }, 10000);
+
   auth.onAuthStateChanged(user => {
+    clearTimeout(authTimeout);
+    console.log('[mm] onAuthStateChanged:', user ? user.uid : 'нет пользователя');
     if (!user) {
       currentUser = null;
       if (appRoot) appRoot.style.display = 'none';
@@ -80,6 +111,7 @@ function initAuth() {
     }
 
     db.collection('users').doc(user.uid).get().then(doc => {
+      console.log('[mm] users/{uid} получен, exists =', doc.exists);
       if (!doc.exists) {
         currentUser = null;
         if (gate) {
@@ -106,8 +138,13 @@ function initAuth() {
       renderNav();
       authReadyCallbacks.forEach(cb => cb(currentUser));
     }).catch(err => {
-      console.error('Не удалось получить профиль пользователя:', err);
+      console.error('[mm] Не удалось получить профиль пользователя:', err);
+      showFatalError('Не удалось загрузить профиль', `${err.code || ''} ${err.message || err}`);
     });
+  }, err => {
+    clearTimeout(authTimeout);
+    console.error('[mm] onAuthStateChanged error:', err);
+    showFatalError('Ошибка авторизации', `${err.code || ''} ${err.message || err}`);
   });
 }
 

@@ -564,6 +564,8 @@ function openTaskForm(task, participant) {
 
 function rerenderCurrent() {
   if (!allDataLoaded() || !currentUser) return;
+  if (dataStallTimeout) { clearTimeout(dataStallTimeout); dataStallTimeout = null; }
+  console.log('[mm] rerenderCurrent: рендерю');
   renderDashboard();
   renderParticipantPage();
 }
@@ -575,19 +577,42 @@ function setSyncStatus() {
   el.innerHTML = '🟢 Синхронизировано со всеми участниками';
 }
 
+let dataStallTimeout = null;
+
+function showDataStallError() {
+  const missing = Object.entries(dataLoaded).filter(([, v]) => !v).map(([k]) => k);
+  console.error('[mm] Данные не загрузились за 10с, отсутствуют:', missing);
+  const target = document.getElementById('participant-header') || document.getElementById('dashboard-root') || document.body;
+  const box = document.createElement('div');
+  box.className = 'loading-placeholder';
+  box.innerHTML = `⚠️ Не удалось загрузить данные (${missing.join(', ')}). Проверьте правила Firestore и интернет-соединение.
+    <br><button id="data-retry-btn" style="margin-top:10px" class="login-btn">Повторить</button>`;
+  target.prepend(box);
+  const btn = document.getElementById('data-retry-btn');
+  if (btn) btn.addEventListener('click', () => location.reload());
+}
+
 function startDataListeners() {
+  console.log('[mm] startDataListeners: старт подписок');
+  dataStallTimeout = setTimeout(() => {
+    if (!allDataLoaded()) showDataStallError();
+  }, 10000);
+
   subscribeParticipants(list => {
+    console.log('[mm] participants загружены:', list.length);
     PARTICIPANTS = list;
     dataLoaded.participants = true;
     setSyncStatus();
     rerenderCurrent();
   });
   subscribeProgress(map => {
+    console.log('[mm] progress загружен:', Object.keys(map).length);
     PROGRESS = map;
     dataLoaded.progress = true;
     rerenderCurrent();
   });
   subscribeSettings(settings => {
+    console.log('[mm] settings загружены');
     SETTINGS = settings;
     dataLoaded.settings = true;
     rerenderCurrent();
@@ -595,7 +620,9 @@ function startDataListeners() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('[mm] DOMContentLoaded');
   onAuthReady(user => {
+    console.log('[mm] onAuthReady:', user ? user.displayName : 'нет');
     if (user) startDataListeners();
   });
 });
