@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Участник — задачи</title>
+<title>Отчёт дня</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -14,19 +14,10 @@
       <a href="index.html" class="nav-back">← Дашборд</a>
       <div id="top-nav-links" class="top-nav-links"></div>
     </div>
-    <div id="sync-status" class="sync-status"></div>
-
-    <div id="participant-switcher" class="switcher-scroll"></div>
-
-    <div id="participant-header">
-      <div class="loading-placeholder">Загрузка данных…</div>
+    <h1 class="section-title" style="margin-top:0">Отчёт дня</h1>
+    <div id="report-root">
+      <div class="loading-placeholder">Загрузка…</div>
     </div>
-
-    <div id="engagement-section"></div>
-
-    <h2 class="section-title">Задачи</h2>
-    <div id="task-list" class="task-list"></div>
-    <div id="add-task-wrap" class="add-task-wrap"></div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -37,6 +28,6 @@
   <script src="js/data.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/store.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/report.js"></script>
 </body>
 </html>

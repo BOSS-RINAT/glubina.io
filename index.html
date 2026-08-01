@@ -7,14 +7,17 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="app-shell">
+  <div id="auth-gate"></div>
+
+  <div id="app-root" class="app-shell" style="display:none">
     <div class="top-nav">
       <div class="brand">Мастермайнд <span>•</span> Дашборд</div>
+      <div id="top-nav-links" class="top-nav-links"></div>
     </div>
     <div id="sync-status" class="sync-status"></div>
 
     <div id="dashboard-root">
-      <!-- рендерится через js/app.js -->
+      <div class="loading-placeholder">Загрузка данных…</div>
     </div>
 
     <div class="footer-note">Нажмите на карточку участника, чтобы открыть его задачи</div>
@@ -22,8 +25,12 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/store.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

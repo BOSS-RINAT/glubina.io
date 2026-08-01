@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Настройка доступа — один раз</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="top-nav">
+      <div class="brand">Мастермайнд <span>•</span> Настройка доступа</div>
+    </div>
+
+    <div class="settings-card glass">
+      <p>Эта страница создаёт аккаунты для входа (админ, 6 участников, гость) и один раз
+      загружает список задач в базу. Нажмите кнопку один раз — после этого можно
+      пользоваться обычным входом на <a href="index.html">index.html</a>.</p>
+      <p><b>Перед нажатием кнопки:</b> откройте Firebase Console → Authentication →
+      Sign-in method → включите провайдер <b>Email/Password</b> (это займёт 10 секунд,
+      без этого создание аккаунтов не сработает).</p>
+      <button id="setup-btn" class="modal-btn modal-btn-primary">Создать аккаунты и загрузить данные</button>
+      <pre id="setup-log" class="setup-log"></pre>
+    </div>
+
+    <h2 class="section-title">Логины и пароли — раздайте участникам</h2>
+    <div id="creds-table" class="glass" style="padding:20px 22px;"></div>
+
+    <div class="footer-note">После настройки рекомендуется удалить js/credentials.js и эту страницу из проекта, чтобы пароли не хранились в файлах.</div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/credentials.js"></script>
+  <script src="js/setup.js"></script>
+</body>
+</html>

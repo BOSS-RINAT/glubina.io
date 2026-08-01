@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function myUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isAdmin() {
+      return isSignedIn() && myUserDoc().role == 'admin';
+    }
+    function myParticipantId() {
+      return isSignedIn() ? myUserDoc().participantId : null;
+    }
+    function myRole() {
+      return isSignedIn() ? myUserDoc().role : null;
+    }
+    function editingLocked() {
+      return get(/databases/$(database)/documents/config/settings).data.editLocked;
+    }
+
+    // Профиль пользователя (роль, привязка к участнику). Каждый может
+    // один раз создать СВОЙ профиль при первом входе (используется
+    // страницей setup.html). Менять роль после этого может только админ.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Общие настройки турнира (название, баллы, число участников, блокировка редактирования)
+    match /config/{doc} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Участники и их задачи. Админ может всё; сам участник может
+    // редактировать только свои задачи, и только если админ не включил
+    // блокировку редактирования в настройках.
+    match /participants/{pid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() ||
+        (isSignedIn() && myParticipantId() == pid && myRole() == 'participant' && !editingLocked());
+    }
+
+    // Прогресс (отметки задач, вовлечение). Админ может всё; участник —
+    // только свой прогресс (отметки разрешены всегда, даже если
+    // редактирование текста задач заблокировано). Гость — только чтение.
+    match /progress/{pid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() ||
+        (isSignedIn() && myParticipantId() == pid && myRole() != 'guest');
+    }
+
+    // Журнал событий (для отчёта дня и будущего админ-журнала).
+    // Записи никогда не редактируются и не удаляются — только добавляются.
+    match /events/{eid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && myRole() != 'guest';
+      allow update, delete: if false;
+    }
+  }
+}
