@@ -1,139 +1,51 @@
 // ============================================================
-//  ЛОГИКА ПРИЛОЖЕНИЯ
+//  ЛОГИКА ПРИЛОЖЕНИЯ (дашборд + страница участника)
 // ============================================================
-//
-// Хранилище данных работает в двух режимах:
-//  1. FIREBASE — если в js/firebase-config.js указана настоящая
-//     конфигурация проекта: данные хранятся в Firestore, все участники
-//     видят изменения друг друга в реальном времени (без перезагрузки).
-//  2. ЛОКАЛЬНЫЙ — если конфигурация не заполнена (заглушка): данные
-//     хранятся в localStorage только на этом устройстве, как раньше.
-//     Сайт полностью работоспособен и без Firebase.
 
-const LOCAL_STORAGE_KEY = 'mm_progress_v1';
+let PARTICIPANTS = [];
+let PROGRESS = {};
+let SETTINGS = SEED_SETTINGS;
+let dataLoaded = { participants: false, progress: false, settings: false };
 
-const FIREBASE_ENABLED =
-  typeof firebaseConfig !== 'undefined' &&
-  firebaseConfig.apiKey &&
-  firebaseConfig.apiKey !== 'YOUR_API_KEY';
+function allDataLoaded() {
+  return dataLoaded.participants && dataLoaded.progress && dataLoaded.settings;
+}
 
-let STATE = {};
-let stateLoaded = false;
-let firestoreDocRef = null;
+// ---------- права доступа ----------
 
-function loadLocalState() {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || {};
-  } catch (e) {
-    return {};
+function canCheckOff(participant) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'admin') return true;
+  if (currentUser.role === 'participant') return currentUser.participantId === participant.id;
+  return false; // guest
+}
+
+function canEditTasks(participant) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'admin') return true;
+  if (currentUser.role === 'participant' && currentUser.participantId === participant.id) {
+    return !SETTINGS.editLocked;
   }
+  return false;
 }
 
-function saveLocalState(state) {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
-}
+// ---------- задачи / прогресс ----------
 
-// Вызывается один раз при загрузке страницы.
-// onReady вызывается сразу после первой загрузки данных,
-// а затем — при каждом изменении (в том числе от других участников).
-function initState(onReady) {
-  if (FIREBASE_ENABLED) {
-    try {
-      firebase.initializeApp(firebaseConfig);
-      const db = firebase.firestore();
-      firestoreDocRef = db.collection('mastermind').doc('progress');
-      firestoreDocRef.onSnapshot(
-        snap => {
-          STATE = snap.data() || {};
-          stateLoaded = true;
-          setSyncStatus('online');
-          onReady();
-        },
-        err => {
-          console.error('Firestore недоступен, переключаюсь на локальный режим:', err);
-          STATE = loadLocalState();
-          stateLoaded = true;
-          setSyncStatus('error');
-          onReady();
-        }
-      );
-    } catch (e) {
-      console.error('Ошибка инициализации Firebase:', e);
-      STATE = loadLocalState();
-      stateLoaded = true;
-      setSyncStatus('error');
-      onReady();
-    }
-  } else {
-    STATE = loadLocalState();
-    stateLoaded = true;
-    setSyncStatus('local');
-    onReady();
-  }
-}
-
-// Записывает одно поле в хранилище (Firestore или localStorage)
-// и оптимистично обновляет локальную копию, чтобы интерфейс
-// откликался мгновенно, не дожидаясь ответа сервера.
-function persistField(key, value) {
-  STATE[key] = value;
-  if (FIREBASE_ENABLED && firestoreDocRef) {
-    firestoreDocRef.set({ [key]: value }, { merge: true }).catch(err => {
-      console.error('Не удалось сохранить в Firestore:', err);
-    });
-  } else {
-    saveLocalState(STATE);
-  }
-}
-
-function setSyncStatus(mode) {
-  const el = document.getElementById('sync-status');
-  if (!el) return;
-  if (mode === 'online') {
-    el.className = 'sync-status sync-online';
-    el.innerHTML = '🟢 Синхронизировано со всеми участниками';
-  } else if (mode === 'error') {
-    el.className = 'sync-status sync-error';
-    el.innerHTML = '⚠️ Firebase недоступен — работаем локально на этом устройстве';
-  } else {
-    el.className = 'sync-status sync-local';
-    el.innerHTML = '💻 Локальный режим (виден только на этом устройстве) — <a href="README.md" target="_blank">как включить общий доступ</a>';
-  }
-}
-
-// ---------- задачи ----------
-
-function getCount(taskId) {
-  return STATE[taskId] || 0;
-}
-
-function setCount(taskId, value, qty) {
-  const clamped = Math.max(0, Math.min(qty, value));
-  persistField(taskId, clamped);
-}
-
-function taskFraction(task) {
-  const count = getCount(task.id);
-  return Math.min(count, task.qty) / task.qty;
-}
-
-function isTaskDone(task) {
-  return getCount(task.id) >= task.qty;
-}
-
-// ---------- вовлечение ----------
-
-function engagementKey(participantId) {
-  return `eng__${participantId}`;
+function getCount(participantId, taskId) {
+  return (PROGRESS[participantId]?.counts?.[taskId]) || 0;
 }
 
 function getEngagement(participantId) {
-  return STATE[engagementKey(participantId)] || 0;
+  return (PROGRESS[participantId]?.engagement) || 0;
 }
 
-function setEngagement(participantId, value) {
-  const clamped = Math.max(0, value);
-  persistField(engagementKey(participantId), clamped);
+function taskFraction(participant, task) {
+  const count = getCount(participant.id, task.id);
+  return Math.min(count, task.qty) / task.qty;
+}
+
+function isTaskDone(participant, task) {
+  return getCount(participant.id, task.id) >= task.qty;
 }
 
 // ---------- даты ----------
@@ -162,8 +74,8 @@ function formatDate(deadlineStr) {
   return `${dd}.${mm}`;
 }
 
-function deadlineStatus(task) {
-  if (isTaskDone(task)) return 'done';
+function deadlineStatus(participant, task) {
+  if (isTaskDone(participant, task)) return 'done';
   if (!task.deadline) return 'none';
   const dl = daysLeft(task.deadline);
   if (dl < 0) return 'overdue';
@@ -180,10 +92,10 @@ function participantStats(participant) {
   let doneCount = 0;
 
   participant.tasks.forEach(task => {
-    const frac = taskFraction(task);
+    const frac = taskFraction(participant, task);
     fractionSum += frac;
     if (frac >= 1) doneCount++;
-    const status = deadlineStatus(task);
+    const status = deadlineStatus(participant, task);
     if (status === 'overdue') overdue++;
     if (status === 'soon') soon++;
   });
@@ -195,7 +107,7 @@ function participantStats(participant) {
   const engagementMin = participant.engagementMin || 0;
   const engagementMet = engagement >= engagementMin;
 
-  const score = doneCount * POINTS_PER_TASK + engagement * POINTS_PER_ENGAGEMENT;
+  const score = doneCount * SETTINGS.pointsPerTask + engagement * SETTINGS.pointsPerEngagement;
 
   return {
     percent, total, doneCount, overdue, soon, fractionSum,
@@ -237,8 +149,10 @@ function groupStats() {
   const engagementPercent = totalEngagementMin
     ? Math.round((totalEngagement / totalEngagementMin) * 100)
     : 0;
+  const participantsCount = SETTINGS.participantsCount || PARTICIPANTS.length || 1;
+  const avgScore = Math.round((totalScore / participantsCount) * 100) / 100;
 
-  return { percent, totalTasks, overdue, soon, totalScore, totalEngagement, totalEngagementMin, engagementPercent };
+  return { percent, totalTasks, overdue, soon, totalScore, avgScore, totalEngagement, totalEngagementMin, engagementPercent };
 }
 
 function initials(name) {
@@ -251,10 +165,6 @@ function medalFor(rank) {
   if (rank === 3) return '🥉';
   return null;
 }
-
-// ============================================================
-//  ПРОГРЕСС-КОЛЬЦО (SVG)
-// ============================================================
 
 function ringSVG(percent, size = 120, stroke = 10, color = '#0A84FF') {
   const r = (size - stroke) / 2;
@@ -275,8 +185,6 @@ function ringSVG(percent, size = 120, stroke = 10, color = '#0A84FF') {
 // ============================================================
 
 function taskFlagsHtml(s) {
-  // overdue -> красный, иначе зелёный "всё в графике".
-  // жёлтый добавляется отдельно и независимо, если есть задачи с дедлайном < 5 дней.
   let html = '';
   if (s.overdue > 0) {
     html += `<span class="chip chip-red">🔴 просрочено: ${s.overdue}</span>`;
@@ -292,6 +200,9 @@ function taskFlagsHtml(s) {
 function renderDashboard() {
   const root = document.getElementById('dashboard-root');
   if (!root) return;
+
+  const brand = document.querySelector('.top-nav .brand');
+  if (brand) brand.innerHTML = `${SETTINGS.tournamentName || 'Мастермайнд'} <span>•</span> Дашборд`;
 
   const gStats = groupStats();
   const ranked = rankedParticipants();
@@ -326,7 +237,8 @@ function renderDashboard() {
         <div class="stat-card-text">
           <div class="hero-label">Суммарный балл группы</div>
           <div class="stat-value">${gStats.totalScore}</div>
-          <div class="hero-sub">2 балла / задача · 3 балла / вовлечение</div>
+          <div class="hero-sub">${SETTINGS.pointsPerTask} балла / задача · ${SETTINGS.pointsPerEngagement} балла / вовлечение</div>
+          <div class="hero-sub">Средний балл на игрока: <b>${gStats.avgScore}</b> (÷${SETTINGS.participantsCount})</div>
         </div>
         <div class="stat-card-icon">🏆</div>
       </section>
@@ -390,6 +302,7 @@ function renderParticipantPage() {
   if (!root) return;
 
   const participant = getParticipantFromURL();
+  if (!participant) return;
   document.title = `${participant.name} — задачи`;
 
   renderParticipantHeader(participant);
@@ -414,13 +327,14 @@ function renderParticipantHeader(participant) {
   const ranked = rankedParticipants();
   const myRank = ranked.find(r => r.p.id === participant.id).rank;
   const medal = medalFor(myRank);
+  const readOnly = !canCheckOff(participant);
 
   header.innerHTML = `
     <div class="hero-card glass participant-hero">
       <div class="hero-left">
         <div class="avatar avatar-lg" style="background:${participant.color}">${initials(participant.name)}</div>
         <div>
-          <div class="hero-label">Участник ${medal ? medal : `· место ${myRank}`}</div>
+          <div class="hero-label">Участник ${medal ? medal : `· место ${myRank}`} ${readOnly ? '<span class="readonly-tag">👁 только просмотр</span>' : ''}</div>
           <div class="participant-name">${participant.name}</div>
           <div class="hero-sub">${s.doneCount}/${s.total} задач завершено · 🏆 ${s.score} баллов</div>
           <div class="group-alerts">
@@ -441,12 +355,13 @@ function renderEngagementSection(participant) {
   if (!container) return;
 
   const s = participantStats(participant);
+  const editable = canCheckOff(participant);
 
   container.innerHTML = `
     <h2 class="section-title">Вовлечение <span class="section-title-sub">(отдельно от задач · без максимума)</span></h2>
     <div class="task-row glass engagement-row ${s.engagementMet ? 'status-border-done' : 'status-border-soon'}">
       <div class="task-check-wrap">
-        <button class="stepper-btn minus" id="eng-minus" ${s.engagement <= 0 ? 'disabled' : ''} aria-label="минус">−</button>
+        <button class="stepper-btn minus" id="eng-minus" ${(!editable || s.engagement <= 0) ? 'disabled' : ''} aria-label="минус">−</button>
       </div>
       <div class="task-body">
         <div class="task-title-row">
@@ -459,21 +374,20 @@ function renderEngagementSection(participant) {
         <div class="chip status-chip ${s.engagementMet ? 'status-done' : 'status-soon'}">
           ${s.engagementMet ? `✅ планка выполнена (+${Math.max(0, s.engagement - s.engagementMin)} сверх)` : `Нужно ещё: ${s.engagementMin - s.engagement}`}
         </div>
-        <div class="task-note">3 балла за каждого вовлечённого человека · максимума нет</div>
+        <div class="task-note">${SETTINGS.pointsPerEngagement} балла за каждого вовлечённого человека · максимума нет</div>
       </div>
       <div class="task-actions">
-        <button class="stepper-btn plus" id="eng-plus" aria-label="плюс">+</button>
+        <button class="stepper-btn plus" id="eng-plus" ${editable ? '' : 'disabled'} aria-label="плюс">+</button>
       </div>
     </div>
   `;
 
+  if (!editable) return;
   document.getElementById('eng-minus').addEventListener('click', () => {
-    setEngagement(participant.id, getEngagement(participant.id) - 1);
-    rerenderCurrent();
+    setEngagement(participant, getEngagement(participant.id) - 1);
   });
   document.getElementById('eng-plus').addEventListener('click', () => {
-    setEngagement(participant.id, getEngagement(participant.id) + 1);
-    rerenderCurrent();
+    setEngagement(participant, getEngagement(participant.id) + 1);
   });
 }
 
@@ -495,25 +409,51 @@ function statusMeta(status, task) {
   }
 }
 
+// сортировка: невыполненные по возрастанию дедлайна (без дедлайна — в конце
+// невыполненных), выполненные на 100% — все внизу списка.
+function sortedTasks(participant) {
+  const withDone = participant.tasks.map(t => ({ t, done: isTaskDone(participant, t) }));
+  const notDone = withDone.filter(x => !x.done);
+  const done = withDone.filter(x => x.done);
+  notDone.sort((a, b) => {
+    const da = a.t.deadline ? parseDate(a.t.deadline).getTime() : Infinity;
+    const db = b.t.deadline ? parseDate(b.t.deadline).getTime() : Infinity;
+    return da - db;
+  });
+  return [...notDone, ...done].map(x => x.t);
+}
+
 function renderTaskList(participant) {
   const list = document.getElementById('task-list');
   list.innerHTML = '';
 
-  participant.tasks.forEach(task => {
+  const editable = canEditTasks(participant);
+
+  const tasks = sortedTasks(participant);
+  tasks.forEach(task => {
     const row = document.createElement('div');
     row.id = `task-${task.id}`;
     row.className = 'task-row glass';
-    updateTaskRow(row, task, participant);
+    renderTaskRow(row, task, participant);
     list.appendChild(row);
   });
+
+  const addWrap = document.getElementById('add-task-wrap');
+  if (addWrap) {
+    addWrap.innerHTML = editable ? `<button id="add-task-btn" class="add-task-btn">+ Добавить задачу</button>` : '';
+    const btn = document.getElementById('add-task-btn');
+    if (btn) btn.addEventListener('click', () => openTaskForm(null, participant));
+  }
 }
 
-function updateTaskRow(row, task, participant) {
-  const count = getCount(task.id);
-  const status = deadlineStatus(task);
+function renderTaskRow(row, task, participant) {
+  const count = getCount(participant.id, task.id);
+  const status = deadlineStatus(participant, task);
   const meta = statusMeta(status, task);
-  const frac = taskFraction(task);
+  const frac = taskFraction(participant, task);
   const done = frac >= 1;
+  const canCheck = canCheckOff(participant);
+  const canEdit = canEditTasks(participant);
 
   row.className = `task-row glass status-border-${status}`;
 
@@ -522,16 +462,16 @@ function updateTaskRow(row, task, participant) {
   row.innerHTML = `
     <div class="task-check-wrap">
       ${isMulti ? `
-        <button class="stepper-btn minus" ${count <= 0 ? 'disabled' : ''} aria-label="минус">−</button>
+        <button class="stepper-btn minus" ${(!canCheck || count <= 0) ? 'disabled' : ''} aria-label="минус">−</button>
       ` : `
-        <button class="checkbox ${done ? 'checked' : ''}" aria-label="выполнено">
+        <button class="checkbox ${done ? 'checked' : ''}" ${canCheck ? '' : 'disabled'} aria-label="выполнено">
           ${done ? '✓' : ''}
         </button>
       `}
     </div>
     <div class="task-body">
       <div class="task-title-row">
-        <div class="task-title ${done ? 'task-title-done' : ''}">${task.text}</div>
+        <div class="task-title ${done ? 'task-title-done' : ''}" ${canCheck ? '' : 'style="cursor:default"'}>${task.text}</div>
         ${isMulti ? `<div class="task-qty">${count}/${task.qty}</div>` : ''}
       </div>
       ${task.note ? `<div class="task-note">${task.note}</div>` : ''}
@@ -543,55 +483,119 @@ function updateTaskRow(row, task, participant) {
       <div class="chip status-chip ${meta.cls}">${meta.label}</div>
     </div>
     <div class="task-actions">
-      ${isMulti ? `<button class="stepper-btn plus" ${count >= task.qty ? 'disabled' : ''} aria-label="плюс">+</button>` : ''}
+      ${isMulti ? `<button class="stepper-btn plus" ${canCheck ? '' : 'disabled'} aria-label="плюс">+</button>` : ''}
+      ${canEdit ? `<button class="edit-btn" aria-label="редактировать">✏️</button>` : ''}
     </div>
   `;
 
-  if (isMulti) {
-    row.querySelector('.minus').addEventListener('click', () => {
-      setCount(task.id, count - 1, task.qty);
-      rerenderCurrent();
-    });
-    row.querySelector('.plus').addEventListener('click', () => {
-      setCount(task.id, count + 1, task.qty);
-      rerenderCurrent();
-    });
-    row.querySelector('.task-title').addEventListener('click', () => {
-      setCount(task.id, done ? 0 : task.qty, task.qty);
-      rerenderCurrent();
-    });
-  } else {
-    row.querySelector('.checkbox').addEventListener('click', () => {
-      setCount(task.id, done ? 0 : 1, task.qty);
-      rerenderCurrent();
-    });
-    row.querySelector('.task-title').addEventListener('click', () => {
-      setCount(task.id, done ? 0 : 1, task.qty);
-      rerenderCurrent();
+  if (canCheck) {
+    if (isMulti) {
+      row.querySelector('.minus').addEventListener('click', () => setTaskCount(participant, task, count - 1));
+      row.querySelector('.plus').addEventListener('click', () => setTaskCount(participant, task, count + 1));
+      row.querySelector('.task-title').addEventListener('click', () => setTaskCount(participant, task, done ? 0 : task.qty));
+    } else {
+      row.querySelector('.checkbox').addEventListener('click', () => setTaskCount(participant, task, done ? 0 : 1));
+      row.querySelector('.task-title').addEventListener('click', () => setTaskCount(participant, task, done ? 0 : 1));
+    }
+  }
+
+  if (canEdit) {
+    row.querySelector('.edit-btn').addEventListener('click', () => openTaskForm(task, participant));
+  }
+}
+
+// ---------- форма редактирования / добавления задачи ----------
+
+function openTaskForm(task, participant) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const isNew = !task;
+  overlay.innerHTML = `
+    <div class="modal-card glass">
+      <div class="modal-title">${isNew ? 'Новая задача' : 'Редактировать задачу'}</div>
+      <label class="login-label">Текст задачи</label>
+      <input id="tf-text" class="login-input" value="${task ? task.text.replace(/"/g, '&quot;') : ''}" />
+      <label class="login-label">Количество (для составных задач, обычно 1)</label>
+      <input id="tf-qty" class="login-input" type="number" min="1" value="${task ? task.qty : 1}" />
+      <label class="login-label">Дедлайн (можно оставить пустым)</label>
+      <input id="tf-deadline" class="login-input" type="date" value="${task && task.deadline ? task.deadline : ''}" />
+      <label class="login-label">Заметка (необязательно)</label>
+      <input id="tf-note" class="login-input" value="${task && task.note ? task.note.replace(/"/g, '&quot;') : ''}" />
+      <div class="modal-actions">
+        ${!isNew ? `<button id="tf-delete" class="modal-btn modal-btn-danger">Удалить</button>` : '<span></span>'}
+        <div>
+          <button id="tf-cancel" class="modal-btn modal-btn-secondary">Отмена</button>
+          <button id="tf-save" class="modal-btn modal-btn-primary">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#tf-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  if (!isNew) {
+    overlay.querySelector('#tf-delete').addEventListener('click', async () => {
+      if (!confirm('Удалить эту задачу?')) return;
+      await deleteTask(participant, task.id);
+      overlay.remove();
     });
   }
+
+  overlay.querySelector('#tf-save').addEventListener('click', async () => {
+    const text = overlay.querySelector('#tf-text').value.trim();
+    const qty = Math.max(1, parseInt(overlay.querySelector('#tf-qty').value, 10) || 1);
+    const deadline = overlay.querySelector('#tf-deadline').value || null;
+    const note = overlay.querySelector('#tf-note').value.trim();
+    if (!text) { alert('Введите текст задачи'); return; }
+    if (isNew) {
+      await addTask(participant, { text, qty, deadline, note });
+    } else {
+      await updateTask(participant, { id: task.id, text, qty, deadline, note });
+    }
+    overlay.remove();
+  });
 }
 
 // ============================================================
 //  ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
-// Полный перерендер текущей страницы (вызывается и после локального клика,
-// и при получении изменений от других участников через Firestore).
 function rerenderCurrent() {
-  if (!stateLoaded) return;
+  if (!allDataLoaded() || !currentUser) return;
   renderDashboard();
   renderParticipantPage();
 }
 
-function showLoadingPlaceholder() {
-  ['dashboard-root', 'participant-header'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = '<div class="loading-placeholder">Загрузка данных…</div>';
+function setSyncStatus() {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.className = 'sync-status sync-online';
+  el.innerHTML = '🟢 Синхронизировано со всеми участниками';
+}
+
+function startDataListeners() {
+  subscribeParticipants(list => {
+    PARTICIPANTS = list;
+    dataLoaded.participants = true;
+    setSyncStatus();
+    rerenderCurrent();
+  });
+  subscribeProgress(map => {
+    PROGRESS = map;
+    dataLoaded.progress = true;
+    rerenderCurrent();
+  });
+  subscribeSettings(settings => {
+    SETTINGS = settings;
+    dataLoaded.settings = true;
+    rerenderCurrent();
   });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  showLoadingPlaceholder();
-  initState(rerenderCurrent);
+  onAuthReady(user => {
+    if (user) startDataListeners();
+  });
 });
