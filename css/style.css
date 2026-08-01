@@ -204,111 +204,110 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* ============================================================
-   SECOND HERO CARD (вовлечение)
+   STATS ROW (3 плитки метрик наверху дашборда)
    ============================================================ */
-.hero-card-secondary {
-  margin-bottom: 8px;
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
 }
 
-.hero-percent-sm {
-  font-size: 36px;
+.stat-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow-card);
 }
 
-.hero-percent-of {
-  font-size: 15px;
+.stat-card-text { min-width: 0; }
+
+.stat-value {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-top: 2px;
+}
+
+.stat-value-of {
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
-/* ============================================================
-   ПОДИУМ (топ-3)
-   ============================================================ */
-.podium {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 14px;
-  align-items: end;
-  margin-bottom: 20px;
+.stat-card-ring {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.podium-card {
+.ring-center-label-sm {
+  position: absolute;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.stat-card-score {
+  background: linear-gradient(135deg, rgba(255, 191, 0, 0.14), rgba(255, 255, 255, 0.6));
+}
+
+.stat-card-icon {
+  font-size: 40px;
+  flex-shrink: 0;
+}
+
+.group-alerts-top {
+  margin: 0 4px 24px;
+}
+
+/* ============================================================
+   RANK LIST (единый список участников по местам)
+   ============================================================ */
+.rank-list {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.rank-card {
+  display: flex;
   align-items: center;
-  text-align: center;
-  padding: 22px 14px 18px;
-  position: relative;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  gap: 14px;
+  padding: 16px 20px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
   border: 1.5px solid transparent;
 }
 
-.podium-card:hover {
-  transform: translateY(-3px);
+.rank-card:hover {
+  transform: translateY(-2px);
   box-shadow: var(--shadow-soft);
 }
 
-.podium-rank-1 {
-  order: 2;
-  padding-top: 30px;
-  padding-bottom: 26px;
+.rank-card-top-1 {
   border-color: rgba(255, 191, 0, 0.55);
-  box-shadow: 0 10px 30px rgba(255, 191, 0, 0.18);
+  background: linear-gradient(90deg, rgba(255, 191, 0, 0.08), transparent 40%);
 }
 
-.podium-rank-2 {
-  order: 1;
+.rank-card-top-2 {
   border-color: rgba(170, 170, 180, 0.5);
 }
 
-.podium-rank-3 {
-  order: 3;
+.rank-card-top-3 {
   border-color: rgba(205, 127, 50, 0.45);
 }
 
-.podium-medal {
-  font-size: 30px;
-  margin-bottom: 4px;
-}
-
-.podium-rank-1 .avatar-lg {
-  width: 76px;
-  height: 76px;
-  font-size: 28px;
-}
-
-.podium-name {
-  font-size: 16px;
-  font-weight: 700;
-  margin-top: 10px;
-}
-
-.podium-score {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  margin: 2px 0 10px;
-}
-
-.podium-card .progress-bar-track.small {
-  width: 100%;
-  margin: 0 0 8px;
-}
-
-.podium-sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-/* ============================================================
-   RANK BADGE (обычные карточки, места 4+)
-   ============================================================ */
 .rank-badge {
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: rgba(120, 120, 128, 0.14);
+  background: rgba(120, 120, 128, 0.12);
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -316,13 +315,66 @@ button { font-family: inherit; cursor: pointer; }
   flex-shrink: 0;
 }
 
-/* ============================================================
-   ENGAGEMENT (вовлечение)
-   ============================================================ */
-.p-card-engagement-row {
+.rank-badge-medal {
+  background: transparent;
+  font-size: 22px;
+}
+
+.rank-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.rank-card-top-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.rank-card-name {
+  font-size: 16.5px;
+  font-weight: 700;
+}
+
+.rank-card-score {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.rank-card-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
+.rank-card-percent {
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 38px;
+  text-align: right;
+}
+
+.rank-card-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rank-card-tasks {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ============================================================
+   ENGAGEMENT (вовлечение)
+   ============================================================ */
 .engagement-tag {
   display: inline-flex;
   font-size: 12.5px;
@@ -337,42 +389,18 @@ button { font-family: inherit; cursor: pointer; }
 .engagement-row .task-title { cursor: default; }
 
 /* ============================================================
-   PARTICIPANT CARDS (dashboard grid)
+   AVATAR
    ============================================================ */
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.p-card {
-  display: block;
-  padding: 20px;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.p-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-soft);
-}
-
-.p-card-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
 .avatar {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 700;
-  font-size: 18px;
+  font-size: 17px;
   flex-shrink: 0;
   box-shadow: 0 3px 8px rgba(0,0,0,0.12);
 }
@@ -381,37 +409,6 @@ button { font-family: inherit; cursor: pointer; }
   width: 68px;
   height: 68px;
   font-size: 26px;
-}
-
-.p-card-name {
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.p-card-sub {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-top: 1px;
-}
-
-.p-card-progress-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.p-card-percent {
-  font-size: 15px;
-  font-weight: 700;
-  min-width: 40px;
-  text-align: right;
-}
-
-.p-card-flags {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
 }
 
 /* ============================================================
@@ -594,10 +591,43 @@ button { font-family: inherit; cursor: pointer; }
   .hero-card { flex-direction: column; align-items: flex-start; padding: 22px; }
   .hero-right { align-self: center; }
   .hero-percent { font-size: 42px; }
-  .cards-grid { grid-template-columns: 1fr; }
   .participant-hero .hero-left { flex-direction: column; align-items: flex-start; }
-  .podium { grid-template-columns: 1fr; gap: 12px; }
-  .podium-rank-1, .podium-rank-2, .podium-rank-3 { order: initial; padding: 20px 14px; }
+  .stats-row { grid-template-columns: 1fr; }
+  .rank-card { flex-wrap: wrap; padding: 14px 16px; }
+  .rank-card-top-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+}
+
+/* ============================================================
+   SYNC STATUS
+   ============================================================ */
+.sync-status {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.sync-status:empty { display: none; }
+
+.sync-online { background: rgba(48, 209, 88, 0.14); color: #1B7F35; }
+.sync-local { background: rgba(120, 120, 128, 0.12); color: var(--text-secondary); }
+.sync-error { background: rgba(255, 159, 10, 0.16); color: #8A5300; }
+
+.sync-status a { color: inherit; text-decoration: underline; }
+
+/* ============================================================
+   LOADING PLACEHOLDER
+   ============================================================ */
+.loading-placeholder {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 500;
 }
 
 /* ============================================================
