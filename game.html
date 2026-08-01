@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Игра — 2048</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+  <div id="auth-gate"></div>
+
+  <div id="app-root" class="app-shell" style="display:none">
+    <div class="top-nav">
+      <a href="index.html" class="nav-back">← Дашборд</a>
+      <div id="top-nav-links" class="top-nav-links"></div>
+    </div>
+
+    <div class="game-wrap">
+      <div class="game-header">
+        <div>
+          <div class="section-title" style="margin:0">🎮 2048</div>
+          <div class="task-note">Свайпайте или используйте стрелки — объединяйте плитки, чтобы набрать 2048</div>
+        </div>
+        <div class="game-scores">
+          <div class="game-score-box glass">
+            <div class="game-score-label">Счёт</div>
+            <div class="game-score-value" id="game-score">0</div>
+          </div>
+          <div class="game-score-box glass">
+            <div class="game-score-label">Рекорд</div>
+            <div class="game-score-value" id="game-best">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="game-board-wrap glass">
+        <div id="game-board" class="game-board"></div>
+        <div id="game-overlay" class="game-overlay" style="display:none">
+          <div class="game-overlay-text" id="game-overlay-text"></div>
+          <button id="game-restart" class="modal-btn modal-btn-primary">Заново</button>
+        </div>
+      </div>
+
+      <button id="game-new" class="add-task-btn">🔄 Новая игра</button>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js?v=1785590427"></script>
+  <script src="js/firebase-init.js?v=1785590427"></script>
+  <script src="js/data.js?v=1785590427"></script>
+  <script src="js/auth.js?v=1785590427"></script>
+  <script src="js/game.js?v=1785590427"></script>
+</body>
+</html>
