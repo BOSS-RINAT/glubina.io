@@ -1,22 +1,105 @@
 // ============================================================
 //  ЛОГИКА ПРИЛОЖЕНИЯ
 // ============================================================
+//
+// Хранилище данных работает в двух режимах:
+//  1. FIREBASE — если в js/firebase-config.js указана настоящая
+//     конфигурация проекта: данные хранятся в Firestore, все участники
+//     видят изменения друг друга в реальном времени (без перезагрузки).
+//  2. ЛОКАЛЬНЫЙ — если конфигурация не заполнена (заглушка): данные
+//     хранятся в localStorage только на этом устройстве, как раньше.
+//     Сайт полностью работоспособен и без Firebase.
 
-const STORAGE_KEY = 'mm_progress_v1';
+const LOCAL_STORAGE_KEY = 'mm_progress_v1';
 
-function loadState() {
+const FIREBASE_ENABLED =
+  typeof firebaseConfig !== 'undefined' &&
+  firebaseConfig.apiKey &&
+  firebaseConfig.apiKey !== 'YOUR_API_KEY';
+
+let STATE = {};
+let stateLoaded = false;
+let firestoreDocRef = null;
+
+function loadLocalState() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || {};
   } catch (e) {
     return {};
   }
 }
 
-function saveState(state) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveLocalState(state) {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
 }
 
-let STATE = loadState();
+// Вызывается один раз при загрузке страницы.
+// onReady вызывается сразу после первой загрузки данных,
+// а затем — при каждом изменении (в том числе от других участников).
+function initState(onReady) {
+  if (FIREBASE_ENABLED) {
+    try {
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+      firestoreDocRef = db.collection('mastermind').doc('progress');
+      firestoreDocRef.onSnapshot(
+        snap => {
+          STATE = snap.data() || {};
+          stateLoaded = true;
+          setSyncStatus('online');
+          onReady();
+        },
+        err => {
+          console.error('Firestore недоступен, переключаюсь на локальный режим:', err);
+          STATE = loadLocalState();
+          stateLoaded = true;
+          setSyncStatus('error');
+          onReady();
+        }
+      );
+    } catch (e) {
+      console.error('Ошибка инициализации Firebase:', e);
+      STATE = loadLocalState();
+      stateLoaded = true;
+      setSyncStatus('error');
+      onReady();
+    }
+  } else {
+    STATE = loadLocalState();
+    stateLoaded = true;
+    setSyncStatus('local');
+    onReady();
+  }
+}
+
+// Записывает одно поле в хранилище (Firestore или localStorage)
+// и оптимистично обновляет локальную копию, чтобы интерфейс
+// откликался мгновенно, не дожидаясь ответа сервера.
+function persistField(key, value) {
+  STATE[key] = value;
+  if (FIREBASE_ENABLED && firestoreDocRef) {
+    firestoreDocRef.set({ [key]: value }, { merge: true }).catch(err => {
+      console.error('Не удалось сохранить в Firestore:', err);
+    });
+  } else {
+    saveLocalState(STATE);
+  }
+}
+
+function setSyncStatus(mode) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (mode === 'online') {
+    el.className = 'sync-status sync-online';
+    el.innerHTML = '🟢 Синхронизировано со всеми участниками';
+  } else if (mode === 'error') {
+    el.className = 'sync-status sync-error';
+    el.innerHTML = '⚠️ Firebase недоступен — работаем локально на этом устройстве';
+  } else {
+    el.className = 'sync-status sync-local';
+    el.innerHTML = '💻 Локальный режим (виден только на этом устройстве) — <a href="README.md" target="_blank">как включить общий доступ</a>';
+  }
+}
 
 // ---------- задачи ----------
 
@@ -26,8 +109,7 @@ function getCount(taskId) {
 
 function setCount(taskId, value, qty) {
   const clamped = Math.max(0, Math.min(qty, value));
-  STATE[taskId] = clamped;
-  saveState(STATE);
+  persistField(taskId, clamped);
 }
 
 function taskFraction(task) {
@@ -51,8 +133,7 @@ function getEngagement(participantId) {
 
 function setEngagement(participantId, value) {
   const clamped = Math.max(0, value);
-  STATE[engagementKey(participantId)] = clamped;
-  saveState(STATE);
+  persistField(engagementKey(participantId), clamped);
 }
 
 // ---------- даты ----------
@@ -216,101 +297,81 @@ function renderDashboard() {
   const ranked = rankedParticipants();
 
   root.innerHTML = `
-    <section class="hero-card glass">
-      <div class="hero-left">
-        <div class="hero-label">Прогресс всей группы</div>
-        <div class="hero-percent">${gStats.percent}%</div>
-        <div class="hero-sub">${gStats.totalTasks} задач · ${PARTICIPANTS.length} участников</div>
-        <div class="group-alerts">
-          ${gStats.overdue ? `<span class="chip chip-red">🔴 просрочено: ${gStats.overdue}</span>` : `<span class="chip chip-green">✅ всё в графике</span>`}
-          ${gStats.soon ? `<span class="chip chip-yellow">🟡 скоро дедлайн: ${gStats.soon}</span>` : ''}
+    <div class="stats-row">
+      <section class="stat-card glass">
+        <div class="stat-card-text">
+          <div class="hero-label">Прогресс группы</div>
+          <div class="stat-value">${gStats.percent}%</div>
+          <div class="hero-sub">${gStats.totalTasks} задач · ${PARTICIPANTS.length} участников</div>
         </div>
-      </div>
-      <div class="hero-right">
-        ${ringSVG(gStats.percent, 140, 12, '#0A84FF')}
-        <div class="ring-center-label">${gStats.percent}%</div>
-      </div>
-    </section>
+        <div class="stat-card-ring">
+          ${ringSVG(gStats.percent, 84, 8, '#0A84FF')}
+          <div class="ring-center-label ring-center-label-sm">${gStats.percent}%</div>
+        </div>
+      </section>
 
-    <section class="hero-card glass hero-card-secondary">
-      <div class="hero-left">
-        <div class="hero-label">Вовлечение группы</div>
-        <div class="hero-percent hero-percent-sm">${gStats.totalEngagement} <span class="hero-percent-of">из ${gStats.totalEngagementMin} (мин.)</span></div>
-        <div class="hero-sub">Суммарный балл группы: ${gStats.totalScore}</div>
-      </div>
-      <div class="hero-right">
-        ${ringSVG(gStats.engagementPercent, 140, 12, '#BF5AF2')}
-        <div class="ring-center-label">${Math.min(gStats.engagementPercent,100)}%${gStats.engagementPercent > 100 ? '+' : ''}</div>
-      </div>
-    </section>
+      <section class="stat-card glass">
+        <div class="stat-card-text">
+          <div class="hero-label">Вовлечение группы</div>
+          <div class="stat-value">${gStats.totalEngagement}<span class="stat-value-of">/${gStats.totalEngagementMin}</span></div>
+          <div class="hero-sub">минимум по группе</div>
+        </div>
+        <div class="stat-card-ring">
+          ${ringSVG(gStats.engagementPercent, 84, 8, '#BF5AF2')}
+          <div class="ring-center-label ring-center-label-sm">${Math.min(gStats.engagementPercent,100)}%${gStats.engagementPercent > 100 ? '+' : ''}</div>
+        </div>
+      </section>
+
+      <section class="stat-card glass stat-card-score">
+        <div class="stat-card-text">
+          <div class="hero-label">Суммарный балл группы</div>
+          <div class="stat-value">${gStats.totalScore}</div>
+          <div class="hero-sub">2 балла / задача · 3 балла / вовлечение</div>
+        </div>
+        <div class="stat-card-icon">🏆</div>
+      </section>
+    </div>
+
+    <div class="group-alerts group-alerts-top">
+      ${gStats.overdue ? `<span class="chip chip-red">🔴 просрочено: ${gStats.overdue}</span>` : `<span class="chip chip-green">✅ всё в графике</span>`}
+      ${gStats.soon ? `<span class="chip chip-yellow">🟡 скоро дедлайн: ${gStats.soon}</span>` : ''}
+    </div>
 
     <h2 class="section-title">Рейтинг участников</h2>
-    <div class="podium" id="podium"></div>
-    <div class="cards-grid" id="participant-cards"></div>
+    <div class="rank-list" id="rank-list"></div>
   `;
 
-  const top3 = ranked.filter(r => r.rank <= 3);
-  const rest = ranked.filter(r => r.rank > 3);
-
-  const podiumOrder = [];
-  const byRank = r => top3.find(x => x.rank === r);
-  if (byRank(2)) podiumOrder.push(byRank(2));
-  if (byRank(1)) podiumOrder.push(byRank(1));
-  if (byRank(3)) podiumOrder.push(byRank(3));
-
-  const podium = document.getElementById('podium');
-  podium.innerHTML = '';
-  podiumOrder.forEach(({ p, s, rank }) => {
-    const el = document.createElement('a');
-    el.href = `participant.html?id=${p.id}`;
-    el.className = `podium-card podium-rank-${rank} glass`;
-    el.style.setProperty('--accent', p.color);
-    el.innerHTML = `
-      <div class="podium-medal">${medalFor(rank)}</div>
-      <div class="avatar avatar-lg" style="background:${p.color}">${initials(p.name)}</div>
-      <div class="podium-name">${p.name}</div>
-      <div class="podium-score">${s.score} баллов</div>
-      <div class="progress-bar-track small">
-        <div class="progress-bar-fill" style="width:${s.percent}%; background:${p.color}"></div>
-      </div>
-      <div class="podium-sub">${s.percent}% задач · 🤝 ${s.engagement}/${s.engagementMin}</div>
-    `;
-    podium.appendChild(el);
-  });
-
-  const grid = document.getElementById('participant-cards');
-  grid.innerHTML = '';
-  rest.forEach(({ p, s, rank }) => {
+  const list = document.getElementById('rank-list');
+  list.innerHTML = '';
+  ranked.forEach(({ p, s, rank }) => {
+    const medal = medalFor(rank);
     const card = document.createElement('a');
     card.href = `participant.html?id=${p.id}`;
-    card.className = 'p-card glass';
+    card.className = `rank-card glass ${rank <= 3 ? `rank-card-top rank-card-top-${rank}` : ''}`;
     card.style.setProperty('--accent', p.color);
     card.innerHTML = `
-      <div class="p-card-top">
-        <div class="rank-badge">${rank}</div>
-        <div class="avatar" style="background:${p.color}">${initials(p.name)}</div>
-        <div class="p-card-name-wrap">
-          <div class="p-card-name">${p.name}</div>
-          <div class="p-card-sub">${s.doneCount}/${s.total} задач · 🏆 ${s.score} баллов</div>
+      <div class="rank-badge ${rank <= 3 ? 'rank-badge-medal' : ''}">${medal ? medal : rank}</div>
+      <div class="avatar" style="background:${p.color}">${initials(p.name)}</div>
+      <div class="rank-card-main">
+        <div class="rank-card-top-row">
+          <div class="rank-card-name">${p.name}</div>
+          <div class="rank-card-score">🏆 ${s.score} баллов</div>
         </div>
-      </div>
-      <div class="p-card-progress-row">
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" style="width:${s.percent}%; background:${p.color}"></div>
+        <div class="rank-card-progress-row">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width:${s.percent}%; background:${p.color}"></div>
+          </div>
+          <div class="rank-card-percent">${s.percent}%</div>
         </div>
-        <div class="p-card-percent">${s.percent}%</div>
-      </div>
-      <div class="p-card-engagement-row">
-        <span class="engagement-tag ${s.engagementMet ? 'engagement-met' : 'engagement-low'}">
-          🤝 Вовлечение: ${s.engagement}/${s.engagementMin}
-        </span>
-      </div>
-      <div class="p-card-flags">
-        ${s.overdue ? `<span class="chip chip-red">🔴 ${s.overdue}</span>` : ''}
-        ${s.soon ? `<span class="chip chip-yellow">🟡 ${s.soon}</span>` : ''}
+        <div class="rank-card-bottom-row">
+          <span class="rank-card-tasks">${s.doneCount}/${s.total} задач</span>
+          <span class="engagement-tag ${s.engagementMet ? 'engagement-met' : 'engagement-low'}">🤝 ${s.engagement}/${s.engagementMin}</span>
+          ${s.overdue ? `<span class="chip chip-red">🔴 ${s.overdue}</span>` : ''}
+          ${s.soon ? `<span class="chip chip-yellow">🟡 ${s.soon}</span>` : ''}
+        </div>
       </div>
     `;
-    grid.appendChild(card);
+    list.appendChild(card);
   });
 }
 
@@ -408,13 +469,11 @@ function renderEngagementSection(participant) {
 
   document.getElementById('eng-minus').addEventListener('click', () => {
     setEngagement(participant.id, getEngagement(participant.id) - 1);
-    renderEngagementSection(participant);
-    renderParticipantHeader(participant);
+    rerenderCurrent();
   });
   document.getElementById('eng-plus').addEventListener('click', () => {
     setEngagement(participant.id, getEngagement(participant.id) + 1);
-    renderEngagementSection(participant);
-    renderParticipantHeader(participant);
+    rerenderCurrent();
   });
 }
 
@@ -491,29 +550,24 @@ function updateTaskRow(row, task, participant) {
   if (isMulti) {
     row.querySelector('.minus').addEventListener('click', () => {
       setCount(task.id, count - 1, task.qty);
-      updateTaskRow(row, task, participant);
-      renderParticipantHeader(participant);
+      rerenderCurrent();
     });
     row.querySelector('.plus').addEventListener('click', () => {
       setCount(task.id, count + 1, task.qty);
-      updateTaskRow(row, task, participant);
-      renderParticipantHeader(participant);
+      rerenderCurrent();
     });
     row.querySelector('.task-title').addEventListener('click', () => {
       setCount(task.id, done ? 0 : task.qty, task.qty);
-      updateTaskRow(row, task, participant);
-      renderParticipantHeader(participant);
+      rerenderCurrent();
     });
   } else {
     row.querySelector('.checkbox').addEventListener('click', () => {
       setCount(task.id, done ? 0 : 1, task.qty);
-      updateTaskRow(row, task, participant);
-      renderParticipantHeader(participant);
+      rerenderCurrent();
     });
     row.querySelector('.task-title').addEventListener('click', () => {
       setCount(task.id, done ? 0 : 1, task.qty);
-      updateTaskRow(row, task, participant);
-      renderParticipantHeader(participant);
+      rerenderCurrent();
     });
   }
 }
@@ -522,7 +576,22 @@ function updateTaskRow(row, task, participant) {
 //  ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+// Полный перерендер текущей страницы (вызывается и после локального клика,
+// и при получении изменений от других участников через Firestore).
+function rerenderCurrent() {
+  if (!stateLoaded) return;
   renderDashboard();
   renderParticipantPage();
+}
+
+function showLoadingPlaceholder() {
+  ['dashboard-root', 'participant-header'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div class="loading-placeholder">Загрузка данных…</div>';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  showLoadingPlaceholder();
+  initState(rerenderCurrent);
 });
