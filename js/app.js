@@ -233,6 +233,8 @@ async function attachYesterdayDeltas(gStats) {
 }
 
 async function attachPercentBonus(gStats) {
+  const valueEl = document.getElementById('total-score-value');
+  const avgEl = document.getElementById('total-score-avg');
   try {
     const bonus = await computeCumulativePercentBonus(PARTICIPANTS, SETTINGS);
     const finalBonus = Math.round((bonus + (SETTINGS.scoreBaselineAdjustmentPercent || 0)) * 100) / 100;
@@ -240,12 +242,11 @@ async function attachPercentBonus(gStats) {
     const participantsCount = SETTINGS.participantsCount || PARTICIPANTS.length || 1;
     const avg = Math.round((grandTotal / participantsCount) * 100) / 100;
 
-    const valueEl = document.getElementById('total-score-value');
-    const avgEl = document.getElementById('total-score-avg');
     if (valueEl) valueEl.textContent = grandTotal;
     if (avgEl) avgEl.innerHTML = `Средний балл на игрока: <b>${avg}</b> (÷${participantsCount}) · вкл. +${finalBonus} за %`;
   } catch (err) {
     console.error('Не удалось посчитать %-бонус для общего балла:', err);
+    if (avgEl) avgEl.innerHTML = `<span style="color:#D70015">⚠️ %-бонус не посчитан: ${err.code || err.message || err}. Проверьте, опубликованы ли правила Firestore для dayScores.</span>`;
   }
 }
 

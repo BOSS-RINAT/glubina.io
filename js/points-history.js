@@ -122,8 +122,15 @@ async function renderPointsHistory() {
   const totalFromRows = Math.round(rows.reduce((s, r) => s + r.points, 0) * 100) / 100;
   const goalsBaseline = phSettings.scoreBaselineAdjustmentGoals || 0;
   const percentBaseline = phSettings.scoreBaselineAdjustmentPercent || 0;
-  const percentBonusRaw = await computeCumulativePercentBonus(phParticipants, phSettings);
-  const percentBonus = Math.round((percentBonusRaw + percentBaseline) * 100) / 100;
+  let percentBonus = 0;
+  let percentError = null;
+  try {
+    const percentBonusRaw = await computeCumulativePercentBonus(phParticipants, phSettings);
+    percentBonus = Math.round((percentBonusRaw + percentBaseline) * 100) / 100;
+  } catch (err) {
+    console.error('Не удалось посчитать %-бонус:', err);
+    percentError = err.code || err.message || String(err);
+  }
   const total = Math.round((totalFromRows + goalsBaseline + percentBonus) * 100) / 100;
   const count = phSettings.participantsCount || phParticipants.length || 1;
   const avg = Math.round((total / count) * 100) / 100;
@@ -139,6 +146,7 @@ async function renderPointsHistory() {
     <div class="report-controls glass" style="margin-bottom:18px">
       <div class="hero-sub">Цели + вовлечение (по текущим отметкам): <b>${totalFromRows} ${pointsWord(totalFromRows)}</b></div>
       <div class="hero-sub">% выполнения командой (накопительно): <b>${percentBonus > 0 ? '+' : ''}${percentBonus} ${pointsWord(percentBonus)}</b></div>
+      ${percentError ? `<div class="hero-sub" style="color:#D70015">⚠️ %-бонус не посчитан: ${percentError}. Проверьте правила Firestore (dayScores).</div>` : ''}
       ${goalsBaseline !== 0 ? `<div class="hero-sub">Ручная корректировка целей (настройки): <b>${goalsBaseline > 0 ? '+' : ''}${goalsBaseline}</b></div>` : ''}
       <div class="hero-sub" style="font-size:18px;font-weight:800;margin-top:6px">Итого: ${total} ${pointsWord(total)} · среднее ${avg} на игрока (÷${count})</div>
     </div>
