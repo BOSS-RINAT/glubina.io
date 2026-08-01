@@ -160,6 +160,10 @@ async function deleteTask(participant, taskId) {
   });
 }
 
+async function updateEngagementMin(participantId, engagementMin) {
+  await db.collection('participants').doc(participantId).update({ engagementMin });
+}
+
 // ---------- настройки ----------
 
 async function updateSettings(fields) {
@@ -169,9 +173,10 @@ async function updateSettings(fields) {
 // ---------- события за конкретный день (для отчёта) ----------
 
 async function getEventsForDate(dateKey) {
-  const snap = await db.collection('events').where('dateKey', '==', dateKey).orderBy('ts').get();
+  const snap = await db.collection('events').where('dateKey', '==', dateKey).get();
   const list = [];
   snap.forEach(doc => list.push({ ...doc.data(), id: doc.id }));
+  list.sort((a, b) => (a.ts?.toMillis?.() || 0) - (b.ts?.toMillis?.() || 0));
   return list;
 }
 

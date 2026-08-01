@@ -144,7 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (root) root.innerHTML = `<div class="loading-placeholder">Эта страница доступна только администратору.</div>`;
       return;
     }
-    subscribeParticipants(list => { reportParticipants = list; });
+    subscribeParticipants(list => {
+      reportParticipants = list;
+      if (document.getElementById('report-text')) refreshReportText();
+    });
     subscribeSettings(s => {
       reportSettings = s;
       const roleInput = document.getElementById('report-role');

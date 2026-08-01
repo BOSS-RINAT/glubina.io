@@ -32,6 +32,11 @@ function renderSettingsPage(settings) {
       <div id="st-msg" class="report-copy-msg"></div>
     </div>
 
+    <h2 class="section-title">Минимальная планка вовлечения</h2>
+    <div class="settings-card glass" id="st-engagement-list">
+      <p class="task-note">Загрузка участников…</p>
+    </div>
+
     <h2 class="section-title">Управление доступом</h2>
     <div class="settings-card glass">
       <p class="task-note">Первоначальная настройка аккаунтов (создание логинов/паролей) выполняется один раз на странице <a href="setup.html">setup.html</a>.</p>
@@ -51,6 +56,30 @@ function renderSettingsPage(settings) {
     const msg = document.getElementById('st-msg');
     msg.textContent = 'Сохранено ✓';
     setTimeout(() => msg.textContent = '', 2000);
+  });
+
+  subscribeParticipants(list => renderEngagementList(list));
+}
+
+function renderEngagementList(participants) {
+  const box = document.getElementById('st-engagement-list');
+  if (!box) return;
+  box.innerHTML = participants.map(p => `
+    <div class="report-controls-row" style="align-items:center">
+      <label class="login-label" style="flex:1;margin:0">${p.name}</label>
+      <input class="login-input eng-min-input" style="width:90px" type="number" min="0"
+        data-pid="${p.id}" value="${p.engagementMin || 0}" />
+    </div>
+  `).join('') + `<div id="st-eng-msg" class="report-copy-msg"></div>`;
+
+  box.querySelectorAll('.eng-min-input').forEach(input => {
+    input.addEventListener('change', async () => {
+      const val = Math.max(0, parseInt(input.value, 10) || 0);
+      input.value = val;
+      await updateEngagementMin(input.dataset.pid, val);
+      const msg = document.getElementById('st-eng-msg');
+      if (msg) { msg.textContent = 'Сохранено ✓'; setTimeout(() => msg.textContent = '', 1500); }
+    });
   });
 }
 
