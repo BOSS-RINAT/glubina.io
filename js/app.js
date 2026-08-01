@@ -566,8 +566,21 @@ function rerenderCurrent() {
   if (!allDataLoaded() || !currentUser) return;
   if (dataStallTimeout) { clearTimeout(dataStallTimeout); dataStallTimeout = null; }
   console.log('[mm] rerenderCurrent: рендерю');
-  renderDashboard();
-  renderParticipantPage();
+  try {
+    renderDashboard();
+    console.log('[mm] renderDashboard: ок');
+  } catch (err) {
+    console.error('[mm] ОШИБКА в renderDashboard:', err);
+    showFatalError('Ошибка отрисовки дашборда', `${err.message}\n${err.stack || ''}`);
+    return;
+  }
+  try {
+    renderParticipantPage();
+    console.log('[mm] renderParticipantPage: ок');
+  } catch (err) {
+    console.error('[mm] ОШИБКА в renderParticipantPage:', err);
+    showFatalError('Ошибка отрисовки страницы участника', `${err.message}\n${err.stack || ''}`);
+  }
 }
 
 function setSyncStatus() {
