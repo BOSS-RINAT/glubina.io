@@ -199,7 +199,7 @@ function taskFlagsHtml(s) {
 
 function renderDashboard() {
   const root = document.getElementById('dashboard-root');
-  if (!root) return;
+  if (!root) { console.log('[mm] renderDashboard: нет #dashboard-root на этой странице, пропускаю'); return; }
 
   const brand = document.querySelector('.top-nav .brand');
   if (brand) brand.innerHTML = `${SETTINGS.tournamentName || 'Мастермайнд'} <span>•</span> Дашборд`;
@@ -298,8 +298,8 @@ function getParticipantFromURL() {
 }
 
 function renderParticipantPage() {
-  const root = document.getElementById('participant-root');
-  if (!root) return;
+  const root = document.getElementById('participant-header');
+  if (!root) { console.log('[mm] renderParticipantPage: нет #participant-header на этой странице, пропускаю'); return; }
 
   const participant = getParticipantFromURL();
   if (!participant) return;
