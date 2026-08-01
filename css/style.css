@@ -267,6 +267,16 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: var(--shadow-soft);
 }
 
+.stat-delta {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+  min-height: 15px;
+}
+.stat-delta-up { color: #1B7F35; }
+.stat-delta-down { color: #D70015; }
+.stat-delta-flat { color: var(--text-secondary); }
+
 .stat-card-icon {
   font-size: 40px;
   flex-shrink: 0;
