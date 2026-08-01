@@ -65,9 +65,9 @@ function renderEngagementList(participants) {
   const box = document.getElementById('st-engagement-list');
   if (!box) return;
   box.innerHTML = participants.map(p => `
-    <div class="report-controls-row" style="align-items:center">
-      <label class="login-label" style="flex:1;margin:0">${p.name}</label>
-      <input class="login-input eng-min-input" style="width:90px" type="number" min="0"
+    <div class="settings-row-inline">
+      <label class="login-label">${p.name}</label>
+      <input class="login-input eng-min-input" type="number" min="0"
         data-pid="${p.id}" value="${p.engagementMin || 0}" />
     </div>
   `).join('') + `<div id="st-eng-msg" class="report-copy-msg"></div>`;

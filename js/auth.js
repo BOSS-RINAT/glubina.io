@@ -155,13 +155,19 @@ function renderNav() {
   if (!nav || !currentUser) return;
 
   const links = [];
-  links.push(`<a href="index.html" class="nav-link">Дашборд</a>`);
-  if (currentUser.role === 'admin') {
-    links.push(`<a href="report.html" class="nav-link">Отчёт дня</a>`);
-    links.push(`<a href="journal.html" class="nav-link">Журнал</a>`);
-    links.push(`<a href="settings.html" class="nav-link">Настройки</a>`);
+  // "Дашборд" не дублируем — на всех страницах, кроме index.html, эту роль
+  // уже играет кнопка "← Дашборд" (.nav-back) слева.
+  if (!document.querySelector('.nav-back')) {
+    links.push(`<a href="index.html" class="nav-link">📊 Дашборд</a>`);
   }
-  links.push(`<button id="logout-btn" class="nav-link nav-link-btn">Выход (${currentUser.displayName})</button>`);
+  links.push(`<a href="charts.html" class="nav-link">📈 Графики</a>`);
+  if (currentUser.role === 'admin') {
+    links.push(`<a href="report.html" class="nav-link">📝 Отчёт дня</a>`);
+    links.push(`<a href="journal.html" class="nav-link">📜 Журнал</a>`);
+    links.push(`<a href="settings.html" class="nav-link">⚙️ Настройки</a>`);
+  }
+  links.push(`<a href="game.html" class="nav-link">🎮 Игра</a>`);
+  links.push(`<button id="logout-btn" class="nav-link nav-link-btn">🚪 Выход (${currentUser.displayName})</button>`);
   nav.innerHTML = links.join('');
   const lb = document.getElementById('logout-btn');
   if (lb) lb.addEventListener('click', logout);

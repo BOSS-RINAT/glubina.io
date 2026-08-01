@@ -209,7 +209,7 @@ function renderDashboard() {
 
   root.innerHTML = `
     <div class="stats-row">
-      <section class="stat-card glass">
+      <a href="charts.html?metric=percent" class="stat-card glass stat-card-link">
         <div class="stat-card-text">
           <div class="hero-label">Прогресс группы</div>
           <div class="stat-value">${gStats.percent}%</div>
@@ -219,9 +219,9 @@ function renderDashboard() {
           ${ringSVG(gStats.percent, 84, 8, '#0A84FF')}
           <div class="ring-center-label ring-center-label-sm">${gStats.percent}%</div>
         </div>
-      </section>
+      </a>
 
-      <section class="stat-card glass">
+      <a href="charts.html?metric=engagement" class="stat-card glass stat-card-link">
         <div class="stat-card-text">
           <div class="hero-label">Вовлечение группы</div>
           <div class="stat-value">${gStats.totalEngagement}<span class="stat-value-of">/${gStats.totalEngagementMin}</span></div>
@@ -231,9 +231,9 @@ function renderDashboard() {
           ${ringSVG(gStats.engagementPercent, 84, 8, '#BF5AF2')}
           <div class="ring-center-label ring-center-label-sm">${Math.min(gStats.engagementPercent,100)}%${gStats.engagementPercent > 100 ? '+' : ''}</div>
         </div>
-      </section>
+      </a>
 
-      <section class="stat-card glass stat-card-score">
+      <a href="charts.html?metric=score" class="stat-card glass stat-card-score stat-card-link">
         <div class="stat-card-text">
           <div class="hero-label">Суммарный балл группы</div>
           <div class="stat-value">${gStats.totalScore}</div>
@@ -241,8 +241,10 @@ function renderDashboard() {
           <div class="hero-sub">Средний балл на игрока: <b>${gStats.avgScore}</b> (÷${SETTINGS.participantsCount})</div>
         </div>
         <div class="stat-card-icon">🏆</div>
-      </section>
+      </a>
     </div>
+
+    <div class="task-note" style="text-align:center;margin:-10px 0 16px">Нажмите на плитку, чтобы открыть график динамики 📈</div>
 
     <div class="group-alerts group-alerts-top">
       ${gStats.overdue ? `<span class="chip chip-red">🔴 просрочено: ${gStats.overdue}</span>` : `<span class="chip chip-green">✅ всё в графике</span>`}
