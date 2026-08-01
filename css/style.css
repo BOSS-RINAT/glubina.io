@@ -639,3 +639,266 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 12.5px;
   margin-top: 40px;
 }
+
+/* ============================================================
+   ЭКРАН ВХОДА
+   ============================================================ */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.login-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.login-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 12px 0 6px;
+}
+
+.login-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(120,120,128,0.22);
+  background: rgba(255,255,255,0.9);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.login-input:focus { outline: none; border-color: var(--blue); }
+
+.login-btn {
+  margin-top: 22px;
+  padding: 13px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--blue);
+  color: white;
+  font-weight: 700;
+  font-size: 15.5px;
+}
+
+.login-btn:active { opacity: 0.85; }
+
+.login-error {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--red);
+  font-weight: 600;
+  min-height: 16px;
+}
+
+.login-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   TOP NAV LINKS
+   ============================================================ */
+.top-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nav-link {
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: rgba(120,120,128,0.1);
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.nav-link-btn { cursor: pointer; }
+
+.readonly-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(120,120,128,0.12);
+  padding: 3px 8px;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* ============================================================
+   РЕДАКТИРОВАНИЕ ЗАДАЧ
+   ============================================================ */
+.edit-btn {
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+
+.edit-btn:hover { background: rgba(120,120,128,0.12); }
+
+.add-task-wrap { margin-top: 14px; }
+
+.add-task-btn {
+  width: 100%;
+  padding: 14px;
+  border: 1.5px dashed rgba(10,132,255,0.4);
+  border-radius: var(--radius-md);
+  background: rgba(10,132,255,0.06);
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,20,30,0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 26px 24px;
+  background: rgba(255,255,255,0.97);
+}
+
+.modal-title {
+  font-size: 19px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.modal-actions {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-btn {
+  padding: 11px 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.modal-btn-primary { background: var(--blue); color: white; }
+.modal-btn-secondary { background: rgba(120,120,128,0.14); color: var(--text-primary); margin-right: 8px; }
+.modal-btn-danger { background: rgba(255,69,58,0.12); color: var(--red); }
+
+/* ============================================================
+   ОТЧЁТ ДНЯ
+   ============================================================ */
+.report-controls {
+  padding: 22px 24px;
+  margin-bottom: 20px;
+}
+
+.report-controls-row { margin-bottom: 4px; }
+
+.report-textarea {
+  width: 100%;
+  min-height: 340px;
+  padding: 18px;
+  border: none;
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 13.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  resize: vertical;
+}
+
+.report-copy-msg {
+  display: inline-block;
+  margin-left: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* ============================================================
+   НАСТРОЙКИ
+   ============================================================ */
+.settings-card {
+  padding: 24px 26px;
+  margin-bottom: 20px;
+}
+
+/* ============================================================
+   SETUP / CREDENTIALS
+   ============================================================ */
+.setup-log {
+  margin-top: 16px;
+  background: rgba(0,0,0,0.85);
+  color: #a6ffa6;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  min-height: 40px;
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.creds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.creds-table th, .creds-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(120,120,128,0.16);
+}
+
+.creds-table code {
+  background: rgba(120,120,128,0.12);
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 13px;
+}
