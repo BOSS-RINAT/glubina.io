@@ -264,6 +264,36 @@ async function attachPercentBonus(gStats) {
   }
 }
 
+// ---------- 🔥 горящие дедлайны (виджет на дашборде) ----------
+
+function burningTasksHtml() {
+  const rows = [];
+  PARTICIPANTS.forEach(p => {
+    (p.tasks || []).forEach(t => {
+      if (!t.deadline || isTaskDone(p, t)) return;
+      const dl = daysLeft(t.deadline);
+      if (dl <= 5) rows.push({ p, t, dl });
+    });
+  });
+  rows.sort((a, b) => a.dl - b.dl);
+  if (!rows.length) return '';
+  return `
+    <h2 class="section-title">🔥 Горящие дедлайны</h2>
+    <div style="margin-bottom:18px">
+      ${rows.map(r => `
+        <div class="task-row glass status-border-${r.dl < 0 ? 'overdue' : 'soon'}">
+          <div class="task-body">
+            <div class="task-title" style="cursor:default">${r.p.name}: «${r.t.text}»</div>
+            <div class="chip status-chip ${r.dl < 0 ? 'status-overdue' : 'status-soon'}">
+              ${r.dl < 0 ? `Просрочено на ${Math.abs(r.dl)} дн.` : r.dl === 0 ? 'Срок сегодня' : `Осталось ${r.dl} дн.`}
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function medalFor(rank) {
   if (rank === 1) return '🥇';
   if (rank === 2) return '🥈';
@@ -338,7 +368,7 @@ function renderDashboard() {
         </div>
       </a>
 
-      <a href="points-history.html" class="stat-card glass stat-card-score stat-card-link">
+      <a href="points.html" class="stat-card glass stat-card-score stat-card-link">
         <div class="stat-card-text">
           <div class="hero-label">Суммарный балл группы</div>
           <div class="stat-value" id="total-score-value">${gStats.totalScore}</div>
@@ -355,6 +385,8 @@ function renderDashboard() {
       ${gStats.overdue ? `<span class="chip chip-red">🔴 просрочено: ${gStats.overdue}</span>` : `<span class="chip chip-green">✅ всё в графике</span>`}
       ${gStats.soon ? `<span class="chip chip-yellow">🟡 скоро дедлайн: ${gStats.soon}</span>` : ''}
     </div>
+
+    ${burningTasksHtml()}
 
     <h2 class="section-title">Рейтинг участников</h2>
     <div class="rank-list" id="rank-list"></div>

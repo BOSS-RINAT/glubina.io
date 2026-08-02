@@ -1,74 +1,35 @@
 // ============================================================
-//  ЖУРНАЛ ДЕЙСТВИЙ (только для админа)
+//  ЖУРНАЛ ДЕЙСТВИЙ (только для админа) — архив, кто что нажал
 // ============================================================
 
 let journalDateKey = mskDateKey();
 let journalParticipants = [];
-let journalProgress = {};
 
 function eventDescription(ev) {
   const time = ev.ts?.toDate ? ev.ts.toDate().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+  const dateShort = ev.dateKey ? ev.dateKey.split('-').slice(1).reverse().join('.') : '';
+  const when = dateShort ? `${dateShort} ${time}` : time;
   const who = ev.byName || '—';
   switch (ev.kind) {
     case 'task':
-      return `${time} · ${who} → ${ev.participantName}: «${ev.taskText}» ${ev.prevValue}→${ev.newValue}`;
+      return `${when} · ${who} → ${ev.participantName}: «${ev.taskText}» ${ev.prevValue}→${ev.newValue}`;
     case 'engagement':
-      return `${time} · ${who} → ${ev.participantName}: вовлечение ${ev.prevValue}→${ev.newValue}`;
+      return `${when} · ${who} → ${ev.participantName}: вовлечение ${ev.prevValue}→${ev.newValue}`;
     case 'edit_task':
-      return `${time} · ${who} изменил(а) задачу «${ev.taskText}» у ${ev.participantName}`;
+      return `${when} · ${who} изменил(а) задачу «${ev.taskText}» у ${ev.participantName}`;
     case 'add_task':
-      return `${time} · ${who} добавил(а) задачу «${ev.taskText}» у ${ev.participantName}`;
+      return `${when} · ${who} добавил(а) задачу «${ev.taskText}» у ${ev.participantName}`;
     case 'delete_task':
-      return `${time} · ${who} удалил(а) задачу «${ev.taskText}» у ${ev.participantName}`;
+      return `${when} · ${who} удалил(а) задачу «${ev.taskText}» у ${ev.participantName}`;
     case 'undo':
-      return `${time} · ${who} отменил(а) действие (${ev.undoOf}) у ${ev.participantName}`;
+      return `${when} · ${who} отменил(а) действие (${ev.undoOf}) у ${ev.participantName}`;
     default:
-      return `${time} · ${who}: ${ev.kind}`;
+      return `${when} · ${who}: ${ev.kind}`;
   }
 }
 
 function canUndo(ev) {
   return ev.kind === 'task' || ev.kind === 'engagement';
-}
-
-// ---------- дедлайны: локальные копии дата-хелперов (без зависимости от app.js) ----------
-
-function jrParseDate(str) {
-  const [y, m, d] = str.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function jrDaysLeft(deadlineStr, refDateKey) {
-  const deadline = jrParseDate(deadlineStr);
-  const ref = jrParseDate(refDateKey);
-  return Math.round((deadline - ref) / 86400000);
-}
-
-function burningTasksHtml(refDateKey) {
-  const rows = [];
-  journalParticipants.forEach(p => {
-    (p.tasks || []).forEach(t => {
-      if (!t.deadline) return;
-      const done = ((journalProgress[p.id]?.counts?.[t.id]) || 0) >= t.qty;
-      if (done) return;
-      const dl = jrDaysLeft(t.deadline, refDateKey);
-      if (dl <= 5) {
-        rows.push({ p, t, dl });
-      }
-    });
-  });
-  rows.sort((a, b) => a.dl - b.dl);
-  if (!rows.length) return `<div class="loading-placeholder">На эту дату горящих дедлайнов нет 🎉</div>`;
-  return rows.map(r => `
-    <div class="task-row glass status-border-${r.dl < 0 ? 'overdue' : 'soon'}">
-      <div class="task-body">
-        <div class="task-title" style="cursor:default">${r.p.name}: «${r.t.text}»</div>
-        <div class="chip status-chip ${r.dl < 0 ? 'status-overdue' : 'status-soon'}">
-          ${r.dl < 0 ? `Просрочено на ${Math.abs(r.dl)} дн.` : r.dl === 0 ? 'Срок сегодня' : `Осталось ${r.dl} дн.`}
-        </div>
-      </div>
-    </div>
-  `).join('');
 }
 
 // ---------- страница ----------
@@ -92,16 +53,12 @@ async function renderJournalPage() {
       </div>
     </div>
 
-    <h2 class="section-title">🔥 Горящие дедлайны на эту дату</h2>
-    <div id="jr-burning">${burningTasksHtml(journalDateKey)}</div>
-
     <h2 class="section-title">Действия за день</h2>
     <div id="jr-list"></div>
   `;
 
   document.getElementById('jr-date').addEventListener('change', e => {
     journalDateKey = e.target.value;
-    document.getElementById('jr-burning').innerHTML = burningTasksHtml(journalDateKey);
     refreshJournalList();
   });
   document.getElementById('jr-participant').addEventListener('change', refreshJournalList);
@@ -163,16 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (root) root.innerHTML = `<div class="loading-placeholder">Эта страница доступна только администратору.</div>`;
       return;
     }
-    subscribeParticipants(list => {
-      journalParticipants = list;
-      const box = document.getElementById('jr-burning');
-      if (box) box.innerHTML = burningTasksHtml(journalDateKey);
-    });
-    subscribeProgress(map => {
-      journalProgress = map;
-      const box = document.getElementById('jr-burning');
-      if (box) box.innerHTML = burningTasksHtml(journalDateKey);
-    });
+    subscribeParticipants(list => { journalParticipants = list; });
     renderJournalPage();
   });
 });
