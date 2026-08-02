@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Баллы</title>
+<link rel="stylesheet" href="css/style.css?v=1785695964">
+</head>
+<body>
+  <div id="auth-gate"></div>
+
+  <div id="app-root" class="app-shell" style="display:none">
+    <div class="top-nav">
+      <a href="index.html" class="nav-back">← Дашборд</a>
+      <div id="top-nav-links" class="top-nav-links"></div>
+    </div>
+    <h1 class="section-title" style="margin-top:0">📜 Баллы</h1>
+
+    <div class="tab-switch" role="tablist">
+      <button id="tab-btn-total" class="tab-switch-btn tab-switch-btn-active" role="tab" aria-selected="true">Общий итог</button>
+      <button id="tab-btn-daily" class="tab-switch-btn" role="tab" aria-selected="false">По дням</button>
+    </div>
+
+    <div id="tab-panel-total" role="tabpanel">
+      <div class="task-note" style="margin-bottom:14px">
+        Здесь — за что именно начислены текущие баллы. Список живой: если задачу снимут
+        или уменьшат вовлечение — соответствующая строка исчезнет отсюда сама.
+      </div>
+      <div id="points-history-root">
+        <div class="loading-placeholder">Загрузка…</div>
+      </div>
+    </div>
+
+    <div id="tab-panel-daily" role="tabpanel" style="display:none">
+      <div id="ds-root">
+        <div class="loading-placeholder">Загрузка…</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js?v=1785695964"></script>
+  <script src="js/firebase-init.js?v=1785695964"></script>
+  <script src="js/data.js?v=1785695964"></script>
+  <script src="js/auth.js?v=1785695964"></script>
+  <script src="js/store.js?v=1785695964"></script>
+  <script src="js/points-history.js?v=1785695964"></script>
+  <script src="js/daily-scores.js?v=1785695964"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnTotal = document.getElementById('tab-btn-total');
+      const btnDaily = document.getElementById('tab-btn-daily');
+      const panelTotal = document.getElementById('tab-panel-total');
+      const panelDaily = document.getElementById('tab-panel-daily');
+      function showTab(which) {
+        const isTotal = which === 'total';
+        panelTotal.style.display = isTotal ? '' : 'none';
+        panelDaily.style.display = isTotal ? 'none' : '';
+        btnTotal.classList.toggle('tab-switch-btn-active', isTotal);
+        btnDaily.classList.toggle('tab-switch-btn-active', !isTotal);
+        btnTotal.setAttribute('aria-selected', isTotal);
+        btnDaily.setAttribute('aria-selected', !isTotal);
+      }
+      btnTotal.addEventListener('click', () => showTab('total'));
+      btnDaily.addEventListener('click', () => showTab('daily'));
+      if (new URLSearchParams(location.search).get('tab') === 'daily') showTab('daily');
+    });
+  </script>
+</body>
+</html>
