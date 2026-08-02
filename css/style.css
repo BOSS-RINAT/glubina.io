@@ -548,6 +548,8 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 600;
   line-height: 1.35;
   cursor: pointer;
+  flex: 1;
+  min-width: 0;
 }
 
 .task-title-done {
@@ -774,7 +776,7 @@ button { font-family: inherit; cursor: pointer; }
   border-radius: var(--radius-sm);
   border: 1.5px solid rgba(120,120,128,0.22);
   background: rgba(255,255,255,0.9);
-  font-size: 15px;
+  font-size: 16px;
   font-family: inherit;
   color: var(--text-primary);
 }
@@ -843,13 +845,18 @@ button { font-family: inherit; cursor: pointer; }
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
     width: 100%;
     order: 3;
-    padding-bottom: 2px;
-    margin-top: 2px;
+    padding-bottom: 4px;
+    margin-top: 4px;
+    /* лёгкая подсказка, что список можно листать вправо */
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
   }
   .top-nav-links::-webkit-scrollbar { display: none; }
   .top-nav .brand, .top-nav .nav-back { order: 1; }
+  .nav-link { padding: 10px 15px; scroll-snap-align: start; }
 }
 
 .readonly-tag {
