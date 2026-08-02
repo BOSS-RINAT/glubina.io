@@ -220,6 +220,15 @@ function deltaBadgeHtml(diff) {
   return `<span class="stat-delta-flat">• без изменений с вчера</span>`;
 }
 
+function scoreDeltaBadgeHtml(diff) {
+  const abs = Math.abs(Math.round(diff));
+  const mod10 = abs % 10, mod100 = abs % 100;
+  const word = (mod100 >= 11 && mod100 <= 14) ? 'баллов' : mod10 === 1 ? 'балл' : (mod10 >= 2 && mod10 <= 4) ? 'балла' : 'баллов';
+  if (diff > 0) return `<span class="stat-delta-up">▲ +${diff} ${word} сегодня</span>`;
+  if (diff < 0) return `<span class="stat-delta-down">▼ ${diff} ${word} сегодня</span>`;
+  return `<span class="stat-delta-flat">• пока без баллов сегодня</span>`;
+}
+
 async function attachYesterdayDeltas(gStats) {
   try {
     const y = await computeYesterdaySnapshot();
@@ -235,6 +244,7 @@ async function attachYesterdayDeltas(gStats) {
 async function attachPercentBonus(gStats) {
   const valueEl = document.getElementById('total-score-value');
   const avgEl = document.getElementById('total-score-avg');
+  const deltaEl = document.getElementById('delta-score');
   try {
     const bonus = await computeCumulativePercentBonus(PARTICIPANTS, SETTINGS);
     const finalBonus = Math.round((bonus + (SETTINGS.scoreBaselineAdjustmentPercent || 0)) * 100) / 100;
@@ -243,7 +253,11 @@ async function attachPercentBonus(gStats) {
     const avg = Math.round((grandTotal / participantsCount) * 100) / 100;
 
     if (valueEl) valueEl.textContent = grandTotal;
-    if (avgEl) avgEl.innerHTML = `Средний балл на игрока: <b>${avg}</b> (÷${participantsCount}) · вкл. +${finalBonus} за %`;
+    if (avgEl) avgEl.innerHTML = `Средний балл на игрока: <b>${avg}</b>`;
+
+    const todayScore = await computeAutoDayScore(mskDateKey(), PARTICIPANTS, SETTINGS);
+    const todayTotal = Math.round((todayScore.goalsPoints + todayScore.percentPoints + todayScore.engagementPoints) * 100) / 100;
+    if (deltaEl) deltaEl.innerHTML = scoreDeltaBadgeHtml(todayTotal);
   } catch (err) {
     console.error('Не удалось посчитать %-бонус для общего балла:', err);
     if (avgEl) avgEl.innerHTML = `<span style="color:#D70015">⚠️ %-бонус не посчитан: ${err.code || err.message || err}. Проверьте, опубликованы ли правила Firestore для dayScores.</span>`;
@@ -304,7 +318,6 @@ function renderDashboard() {
         <div class="stat-card-text">
           <div class="hero-label">Прогресс группы</div>
           <div class="stat-value">${gStats.percent}%</div>
-          <div class="hero-sub">${gStats.totalTasks} задач · ${PARTICIPANTS.length} участников</div>
           <div class="stat-delta" id="delta-percent">&nbsp;</div>
         </div>
         <div class="stat-card-ring">
@@ -317,7 +330,6 @@ function renderDashboard() {
         <div class="stat-card-text">
           <div class="hero-label">Вовлечение группы</div>
           <div class="stat-value">${gStats.totalEngagement}<span class="stat-value-of">/${gStats.totalEngagementMin}</span></div>
-          <div class="hero-sub">минимум по группе</div>
           <div class="stat-delta" id="delta-engagement">&nbsp;</div>
         </div>
         <div class="stat-card-ring">
@@ -330,8 +342,8 @@ function renderDashboard() {
         <div class="stat-card-text">
           <div class="hero-label">Суммарный балл группы</div>
           <div class="stat-value" id="total-score-value">${gStats.totalScore}</div>
-          <div class="hero-sub">${SETTINGS.pointsPerTask} балла / задача · ${SETTINGS.pointsPerEngagement} балла / вовлечение · ${SETTINGS.pointsPerPercent} балл / % команды</div>
-          <div class="hero-sub" id="total-score-avg">Средний балл на игрока: <b>${gStats.avgScore}</b> (÷${SETTINGS.participantsCount})</div>
+          <div class="stat-delta" id="delta-score">&nbsp;</div>
+          <div class="hero-sub" id="total-score-avg">Средний балл на игрока: <b>${gStats.avgScore}</b></div>
         </div>
         <div class="stat-card-icon">🏆</div>
       </a>
