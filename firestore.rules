@@ -11,6 +11,12 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && myUserDoc().role == 'admin';
     }
+    // "Супер-админ" — это конкретно логин admin (создатель проекта).
+    // Только он может создавать/деактивировать чужие профили входа —
+    // остальные админы такого делать не могут, даже через консоль браузера.
+    function isSuperAdmin() {
+      return isSignedIn() && myUserDoc().login == 'admin';
+    }
     function myParticipantId() {
       return isSignedIn() ? myUserDoc().participantId : null;
     }
@@ -26,7 +32,7 @@ service cloud.firestore {
     // страницей setup.html). Менять роль после этого может только админ.
     match /users/{uid} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow create: if isSignedIn() && (request.auth.uid == uid || isSuperAdmin());
       allow update, delete: if isAdmin();
     }
 
@@ -68,6 +74,13 @@ service cloud.firestore {
     match /dayScores/{dateKey} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+    // Публичный список логинов+имён для выпадающего списка на экране входа
+    // (без паролей и прочих данных — читать может кто угодно, даже до входа).
+    // Писать может только супер-админ, через панель в "Настройках".
+    match /publicLogins/{login} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
     }
   }
 }
