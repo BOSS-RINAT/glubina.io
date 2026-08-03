@@ -205,10 +205,56 @@ async function undoEvent(ev) {
     undoOf: ev.kind,
     taskId: ev.taskId || null,
     taskText: ev.taskText || null,
+    qty: ev.qty || null,
     prevValue: ev.newValue,
     newValue: ev.prevValue,
   });
   invalidatePercentEventsCache();
+}
+
+// ---------- надёжный разбор истории "закрыта / не закрыта" ----------
+//
+// Общий помощник для charts.js / daily-scores.js / report.js.
+// Отслеживает РЕАЛЬНОЕ состояние каждой задачи по ходу истории, а не
+// доверяет полю prevValue конкретного события — иначе одно и то же
+// изменение, отменённое и через профиль участника, и через журнал
+// администратора, посчиталось бы дважды. onChange вызывается только
+// когда статус "закрыта" ДЕЙСТВИТЕЛЬНО меняется относительно уже
+// отслеженного состояния (события должны идти в хронологическом порядке).
+function replayTaskDoneTransitions(events, onChange, participantsForQtyFallback) {
+  const doneState = {};
+  const fallbackQty = (pid, taskId) => {
+    if (!participantsForQtyFallback) return 1;
+    const p = participantsForQtyFallback.find(p => p.id === pid);
+    const t = p && (p.tasks || []).find(t => t.id === taskId);
+    return (t && t.qty) || 1;
+  };
+  events.forEach(ev => {
+    if (!ev.participantId) return;
+    let taskId = null, qty = null, newCount = null, prevCount = null;
+    if (ev.kind === 'task') {
+      taskId = ev.taskId; qty = ev.qty || 1; newCount = ev.newValue; prevCount = ev.prevValue;
+    } else if (ev.kind === 'undo' && ev.undoOf === 'task') {
+      taskId = ev.taskId; qty = ev.qty || fallbackQty(ev.participantId, ev.taskId); newCount = ev.newValue; prevCount = ev.prevValue;
+    } else {
+      return;
+    }
+    if (taskId == null || newCount == null) return;
+    const key = `${ev.participantId}__${taskId}`;
+    // Первое событие по этой задаче в переданном списке — доверяем его
+    // prevValue как реальному состоянию "на входе" (перенесённому из
+    // истории до начала выборки). Дальше — только наше отслеженное
+    // состояние, чтобы не считать одно и то же изменение дважды.
+    if (!(key in doneState)) {
+      doneState[key] = prevCount != null ? prevCount >= qty : false;
+    }
+    const wasDone = doneState[key];
+    const isDone = newCount >= qty;
+    if (wasDone !== isDone) {
+      doneState[key] = isDone;
+      onChange(ev, wasDone, isDone);
+    }
+  });
 }
 
 // ---------- % выполнения задач командой на конец произвольной даты ----------
@@ -288,19 +334,13 @@ async function computeAutoDayScore(dateKey, participants, settings) {
   const events = await getEventsForDate(dateKey);
   let goalsPoints = 0, engagementPoints = 0;
 
-  const taskLastValue = {}; // `${pid}__${taskId}` -> { wasDone, nowDone }
+  const taskDoneState = {}; // `${pid}__${taskId}` -> закрыта ли сейчас (для goalsPoints ниже не нужен, но полезен для отладки)
+  replayTaskDoneTransitions(events, (ev, wasDone, isDone) => {
+    if (!wasDone && isDone) goalsPoints += settings.pointsPerTask;
+    else if (wasDone && !isDone) goalsPoints -= settings.pointsPerTask;
+  }, participants);
   events.forEach(ev => {
-    if (ev.kind === 'task') {
-      const key = `${ev.participantId}__${ev.taskId}`;
-      if (!taskLastValue[key]) taskLastValue[key] = { wasDone: ev.prevValue >= ev.qty, nowDone: ev.newValue >= ev.qty };
-      else taskLastValue[key].nowDone = ev.newValue >= ev.qty;
-    } else if (ev.kind === 'engagement') {
-      engagementPoints += ev.delta * settings.pointsPerEngagement;
-    }
-  });
-  Object.values(taskLastValue).forEach(t => {
-    if (!t.wasDone && t.nowDone) goalsPoints += settings.pointsPerTask;
-    else if (t.wasDone && !t.nowDone) goalsPoints -= settings.pointsPerTask;
+    if (ev.kind === 'engagement') engagementPoints += ev.delta * settings.pointsPerEngagement;
   });
 
   const startPercent = await computeGroupPercentAsOf(previousDateKey(dateKey), participants);

@@ -19,46 +19,48 @@ function pointsWord(n) {
 async function buildReportText() {
   const events = await getEventsForDate(selectedDateKey);
 
-  // группировка по участнику -> задаче / вовлечению
+  // группировка по участнику -> вовлечению (цели считаются отдельно, ниже,
+  // через replayTaskDoneTransitions — это защищает от двойного счёта, если
+  // одно и то же изменение отменили и через профиль, и через журнал)
   const byParticipant = {};
   events.forEach(ev => {
     if (!ev.participantId) return;
-    if (!byParticipant[ev.participantId]) byParticipant[ev.participantId] = { tasks: {}, engagementDelta: 0, name: ev.participantName };
+    if (!byParticipant[ev.participantId]) byParticipant[ev.participantId] = { engagementDelta: 0, name: ev.participantName };
     const bucket = byParticipant[ev.participantId];
-    if (ev.kind === 'task') {
-      if (!bucket.tasks[ev.taskId]) bucket.tasks[ev.taskId] = { netDelta: 0, lastValue: 0, qty: ev.qty, text: ev.taskText };
-      bucket.tasks[ev.taskId].netDelta += ev.delta;
-      bucket.tasks[ev.taskId].lastValue = ev.newValue;
-      bucket.tasks[ev.taskId].qty = ev.qty;
-      bucket.tasks[ev.taskId].text = ev.taskText;
-    } else if (ev.kind === 'engagement') {
+    if (ev.kind === 'engagement') {
       bucket.engagementDelta += ev.delta;
+    } else if (ev.kind === 'undo' && ev.undoOf === 'engagement') {
+      bucket.engagementDelta += (ev.newValue - ev.prevValue);
     }
   });
 
   let goalsPoints = 0;
   let engagementPoints = 0;
-  const lines = [];
+  const nameById = {};
+  reportParticipants.forEach(p => nameById[p.id] = p.name);
 
-  // сохраняем порядок участников как на дашборде — но в отчёте только
-  // полностью закрытые цели, шаги/промежуточный прогресс не показываем
+  // финальная строка на задачу за день (перезаписывается, если задачу
+  // за день несколько раз закрывали/отменяли — показываем только итог)
+  const finalGoalLine = {}; // `${pid}__${taskId}` -> текст строки
+  replayTaskDoneTransitions(events, (ev, wasDone, isDone) => {
+    const key = `${ev.participantId}__${ev.taskId}`;
+    if (isDone) {
+      const name = ev.participantName || nameById[ev.participantId] || '';
+      const pts = reportSettings.pointsPerTask;
+      finalGoalLine[key] = { pid: ev.participantId, text: `✅ ${name} ${ev.taskText} — ${pts} ${pointsWord(pts)}` };
+    } else {
+      delete finalGoalLine[key];
+    }
+  }, reportParticipants);
+  goalsPoints = Object.keys(finalGoalLine).length * reportSettings.pointsPerTask;
+
+  const lines = [];
+  // сохраняем порядок участников как на дашборде
   reportParticipants.forEach(p => {
     const bucket = byParticipant[p.id];
-    if (!bucket) return;
-    const personLines = [];
+    const personLines = Object.values(finalGoalLine).filter(l => l.pid === p.id).map(l => l.text);
 
-    Object.values(bucket.tasks).forEach(t => {
-      if (t.netDelta <= 0) return; // сняли прогресс или не менялось — не показываем
-      const isDone = t.lastValue >= t.qty;
-      if (isDone) {
-        const pts = reportSettings.pointsPerTask;
-        goalsPoints += pts;
-        personLines.push(`✅ ${p.name} ${t.text} — ${pts} ${pointsWord(pts)}`);
-      }
-      // незавершённые шаги в отчёт больше не попадают
-    });
-
-    if (bucket.engagementDelta > 0) {
+    if (bucket && bucket.engagementDelta > 0) {
       const pts = bucket.engagementDelta * reportSettings.pointsPerEngagement;
       engagementPoints += pts;
       personLines.push(`🤝 ${p.name} Вовлечение: ${bucket.engagementDelta} человек — ${pts} ${pointsWord(pts)}`);

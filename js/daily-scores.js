@@ -33,26 +33,34 @@ async function dsComputeRow(dateKey) {
   const goalLines = [];
   const engLines = [];
   const byParticipant = {};
+  const nameById = {};
+  dsParticipants.forEach(p => nameById[p.id] = p.name);
+
+  const finalDoneLine = {}; // `${pid}__${taskId}` -> текст строки (перезаписывается при повторных переключениях за день)
+  replayTaskDoneTransitions(events, (ev, wasDone, isDone) => {
+    const key = `${ev.participantId}__${ev.taskId}`;
+    if (isDone) {
+      const name = ev.participantName || nameById[ev.participantId] || '';
+      finalDoneLine[key] = `✅ ${name}: «${ev.taskText}»`;
+    } else {
+      delete finalDoneLine[key];
+    }
+  }, dsParticipants);
+  goalLines.push(...Object.values(finalDoneLine));
+
   events.forEach(ev => {
     if (!ev.participantId) return;
-    if (!byParticipant[ev.participantId]) byParticipant[ev.participantId] = { tasks: {}, engagementDelta: 0, name: ev.participantName };
+    if (!byParticipant[ev.participantId]) byParticipant[ev.participantId] = { engagementDelta: 0, name: ev.participantName };
     const b = byParticipant[ev.participantId];
-    if (ev.kind === 'task') {
-      if (!b.tasks[ev.taskId]) b.tasks[ev.taskId] = { netDelta: 0, lastValue: 0, qty: ev.qty, text: ev.taskText };
-      b.tasks[ev.taskId].netDelta += ev.delta;
-      b.tasks[ev.taskId].lastValue = ev.newValue;
-      b.tasks[ev.taskId].qty = ev.qty;
-      b.tasks[ev.taskId].text = ev.taskText;
-    } else if (ev.kind === 'engagement') {
+    if (ev.kind === 'engagement') {
       b.engagementDelta += ev.delta;
+    } else if (ev.kind === 'undo' && ev.undoOf === 'engagement') {
+      b.engagementDelta += (ev.newValue - ev.prevValue);
     }
   });
   dsParticipants.forEach(p => {
     const b = byParticipant[p.id];
     if (!b) return;
-    Object.values(b.tasks).forEach(t => {
-      if (t.netDelta > 0 && t.lastValue >= t.qty) goalLines.push(`✅ ${p.name}: «${t.text}»`);
-    });
     if (b.engagementDelta > 0) engLines.push(`🤝 ${p.name}: +${b.engagementDelta}`);
   });
 

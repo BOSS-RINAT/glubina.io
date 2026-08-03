@@ -23,19 +23,11 @@ let customFrom = null, customTo = null;
 
 async function loadAllEventsOnce() {
   if (allEvents) return allEvents;
-  const snap = await db.collection('events').get();
+  const snap = await db.collection('events').orderBy('ts', 'asc').get();
   const list = [];
   snap.forEach(doc => list.push(doc.data()));
   allEvents = list;
   return list;
-}
-
-function findTaskById(taskId) {
-  for (const p of chartsParticipants) {
-    const t = (p.tasks || []).find(t => t.id === taskId);
-    if (t) return t;
-  }
-  return null;
 }
 
 // dateKey -> participantId -> { taskDelta, engDelta }
@@ -49,26 +41,21 @@ function aggregateByDay(events) {
 
   events.forEach(ev => {
     if (!ev.participantId || !ev.dateKey) return;
-    if (ev.kind === 'task') {
-      const wasDone = ev.prevValue >= ev.qty;
-      const isDone = ev.newValue >= ev.qty;
-      if (!wasDone && isDone) bump(ev.dateKey, ev.participantId, 'taskDelta', 1);
-      else if (wasDone && !isDone) bump(ev.dateKey, ev.participantId, 'taskDelta', -1);
-    } else if (ev.kind === 'engagement') {
+    if (ev.kind === 'engagement') {
       bump(ev.dateKey, ev.participantId, 'engDelta', ev.delta || 0);
-    } else if (ev.kind === 'undo') {
-      if (ev.undoOf === 'task') {
-        const task = findTaskById(ev.taskId);
-        const qty = task ? task.qty : 1;
-        const wasDone = ev.prevValue >= qty;
-        const isDone = ev.newValue >= qty;
-        if (!wasDone && isDone) bump(ev.dateKey, ev.participantId, 'taskDelta', 1);
-        else if (wasDone && !isDone) bump(ev.dateKey, ev.participantId, 'taskDelta', -1);
-      } else if (ev.undoOf === 'engagement') {
-        bump(ev.dateKey, ev.participantId, 'engDelta', (ev.newValue - ev.prevValue));
-      }
+    } else if (ev.kind === 'undo' && ev.undoOf === 'engagement') {
+      bump(ev.dateKey, ev.participantId, 'engDelta', (ev.newValue - ev.prevValue));
     }
   });
+
+  // события должны быть в хронологическом порядке (обеспечивается orderBy
+  // в loadAllEventsOnce) — replayTaskDoneTransitions отслеживает РЕАЛЬНОЕ
+  // состояние по каждой задаче, поэтому одно и то же изменение, отменённое
+  // и через профиль участника, и через журнал администратора, не
+  // засчитывается дважды.
+  replayTaskDoneTransitions(events, (ev, wasDone, isDone) => {
+    bump(ev.dateKey, ev.participantId, 'taskDelta', isDone ? 1 : -1);
+  }, chartsParticipants);
 
   return map;
 }
