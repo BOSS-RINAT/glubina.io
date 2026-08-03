@@ -373,3 +373,57 @@ function subscribeProgressCacheOnce() {
   };
   tryInit();
 }
+
+// ============================================================
+//  УПРАВЛЕНИЕ ДОСТУПОМ — создание/деактивация admin- и guest-профилей.
+//  Доступно только супер-админу (см. firestore.rules: isSuperAdmin()).
+//  Пароли других людей нельзя "посмотреть" или "поменять на месте" —
+//  это ограничение самого Firebase Auth (не наша недоработка): сменить
+//  чужой пароль без входа под ним может только сервер с Admin SDK,
+//  которого в этом бесплатном статическом проекте нет. Поэтому вместо
+//  смены пароля используется "деактивировать старый вход + выдать новый
+//  логин/пароль" — практически то же самое для конечного пользователя.
+// ============================================================
+
+function subscribeManagedAccounts(cb) {
+  // "управляемые" — все, кроме участников (у участников отдельный
+  // жизненный цикл, завязанный на задачи, их эта панель не трогает)
+  return db.collection('users').onSnapshot(snap => {
+    const list = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.role === 'admin' || d.role === 'guest') list.push({ uid: doc.id, ...d });
+    });
+    cb(list);
+  }, err => console.error('managedAccounts listener error:', err));
+}
+
+async function createManagedAccount({ login, displayName, role, password }) {
+  const existing = await db.collection('publicLogins').doc(login).get();
+  if (existing.exists) throw new Error('Такой логин уже занят, выберите другой');
+
+  const secondaryApp = firebase.apps.find(a => a.name === 'admin-secondary')
+    || firebase.initializeApp(firebaseConfig, 'admin-secondary');
+  const secAuth = secondaryApp.auth();
+
+  const cred = await secAuth.createUserWithEmailAndPassword(loginIdToEmail(login), password);
+  const newUid = cred.user.uid;
+  await secAuth.signOut(); // сразу отключаемся от secondary — она нам больше не нужна
+
+  // Пишем через ОСНОВНОЕ приложение (мы всё это время авторизованы как
+  // супер-админ там) — так это честная админ-операция с точки зрения
+  // правил безопасности, а не самозапись нового пользователя.
+  await db.collection('users').doc(newUid).set({ login, displayName, role, participantId: null });
+  await db.collection('publicLogins').doc(login).set({ displayName });
+  return newUid;
+}
+
+async function deactivateManagedAccount(uid, login) {
+  await db.collection('users').doc(uid).delete();
+  await db.collection('publicLogins').doc(login).delete();
+  // Сам Firebase Auth аккаунт при этом не удаляется (для этого нужен
+  // сервер с Admin SDK) — технически по старому паролю ещё можно
+  // "войти" на уровне Firebase, но без записи в users сайт сразу
+  // покажет "Аккаунт не настроен" и не даст сделать вообще ничего —
+  // то есть по факту доступ полностью закрыт.
+}

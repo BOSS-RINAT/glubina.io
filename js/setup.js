@@ -20,24 +20,29 @@ async function runSetup() {
   const secDb = secondaryApp.firestore();
 
   try {
-    // 1. Создаём админа первым и сразу сеем данные, пока авторизованы как админ
-    const admin = LOGIN_ACCOUNTS.find(a => a.role === 'admin');
-    log(`Создаю аккаунт: ${admin.login}…`);
+    // 1. Создаём всех админов первыми и сразу сеем данные под первым из них
+    const admins = LOGIN_ACCOUNTS.filter(a => a.role === 'admin');
     let adminUid;
-    try {
-      const cred = await secAuth.createUserWithEmailAndPassword(loginIdToEmail(admin.login), SETUP_PASSWORDS[admin.login]);
-      adminUid = cred.user.uid;
-    } catch (e) {
-      if (e.code === 'auth/email-already-in-use') {
-        log(`  уже существует, вхожу…`);
-        const cred = await secAuth.signInWithEmailAndPassword(loginIdToEmail(admin.login), SETUP_PASSWORDS[admin.login]);
+    for (const admin of admins) {
+      log(`Создаю аккаунт: ${admin.login}…`);
+      try {
+        const cred = await secAuth.createUserWithEmailAndPassword(loginIdToEmail(admin.login), SETUP_PASSWORDS[admin.login]);
         adminUid = cred.user.uid;
-      } else throw e;
+      } catch (e) {
+        if (e.code === 'auth/email-already-in-use') {
+          log(`  уже существует, вхожу…`);
+          const cred = await secAuth.signInWithEmailAndPassword(loginIdToEmail(admin.login), SETUP_PASSWORDS[admin.login]);
+          adminUid = cred.user.uid;
+        } else { log(`  ⚠ ошибка: ${e.message}`); continue; }
+      }
+      await secDb.collection('users').doc(adminUid).set({
+        login: admin.login, displayName: admin.displayName, role: admin.role, participantId: admin.participantId,
+      });
+      try {
+        await secDb.collection('publicLogins').doc(admin.login).set({ displayName: admin.displayName });
+      } catch (e) { /* не критично — этот админ и так есть в LOGIN_ACCOUNTS для выпадающего списка */ }
+      log(`  ✓ ${admin.displayName} готов`);
     }
-    await secDb.collection('users').doc(adminUid).set({
-      login: admin.login, displayName: admin.displayName, role: admin.role, participantId: admin.participantId,
-    });
-    log(`  ✓ ${admin.displayName} готов`);
 
     // 2. Сеем участников и настройки (сейчас мы авторизованы как админ)
     log('Загружаю список задач и настройки…');

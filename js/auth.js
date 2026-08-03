@@ -33,6 +33,25 @@ function renderLoginScreen(container) {
   const savedLogin = localStorage.getItem('mm_last_login');
   if (savedLogin) container.querySelector('#login-select').value = savedLogin;
 
+  // подмешиваем логины, созданные позже прямо с сайта (не завязано на код) —
+  // это публичное чтение, доступно ещё до входа
+  if (db) {
+    db.collection('publicLogins').get().then(snap => {
+      const select = container.querySelector('#login-select');
+      if (!select) return;
+      const known = new Set(LOGIN_ACCOUNTS.map(a => a.login));
+      const currentValue = select.value;
+      snap.forEach(doc => {
+        if (known.has(doc.id)) return;
+        const opt = document.createElement('option');
+        opt.value = doc.id;
+        opt.textContent = doc.data().displayName || doc.id;
+        select.appendChild(opt);
+      });
+      if (savedLogin) select.value = savedLogin; else select.value = currentValue;
+    }).catch(err => console.error('Не удалось загрузить дополнительные логины:', err));
+  }
+
   const doLogin = () => {
     const login = container.querySelector('#login-select').value;
     const password = container.querySelector('#login-password').value;
@@ -132,6 +151,7 @@ function initAuth() {
         displayName: data.displayName,
         role: data.role,
         participantId: data.participantId || null,
+        isSuperAdmin: data.login === 'admin',
       };
       if (gate) gate.style.display = 'none';
       if (appRoot) appRoot.style.display = '';

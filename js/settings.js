@@ -58,9 +58,7 @@ function renderSettingsPage(settings) {
     </div>
 
     <h2 class="section-title">Управление доступом</h2>
-    <div class="settings-card glass">
-      <p class="task-note">Первоначальная настройка аккаунтов (создание логинов/паролей) выполняется один раз на странице <a href="setup.html">setup.html</a>.</p>
-    </div>
+    ${renderAccessPanelHtml()}
   `;
 
   document.getElementById('st-save').addEventListener('click', async () => {
@@ -83,6 +81,127 @@ function renderSettingsPage(settings) {
   });
 
   subscribeParticipants(list => renderEngagementList(list));
+
+  if (currentUser.isSuperAdmin) {
+    subscribeManagedAccounts(list => renderAccessPanelList(list));
+    wireAccessPanelForm();
+  }
+}
+
+function renderAccessPanelHtml() {
+  if (!currentUser.isSuperAdmin) {
+    return `
+      <div class="settings-card glass">
+        <p class="task-note">Создание и деактивация профилей доступны только супер-админу (это вы увидите под своим логином).</p>
+      </div>
+    `;
+  }
+  return `
+    <div class="settings-card glass">
+      <p class="task-note" style="margin-bottom:12px">
+        Создать новый вход (админ или гость). Пароль показывается один раз сразу после создания — сохраните его,
+        Firebase не позволяет посмотреть чужой пароль повторно.
+      </p>
+      <label class="login-label">Роль</label>
+      <select id="ap-role" class="login-input">
+        <option value="admin">Админ</option>
+        <option value="guest">Гость</option>
+      </select>
+      <label class="login-label">Логин (латиницей, без пробелов)</label>
+      <input id="ap-login" class="login-input" placeholder="например: admin2" />
+      <label class="login-label">Имя (отображается в списке при входе)</label>
+      <input id="ap-name" class="login-input" placeholder="например: Ксения" />
+      <label class="login-label">Пароль</label>
+      <div style="display:flex;gap:8px">
+        <input id="ap-password" class="login-input" placeholder="пароль" />
+        <button id="ap-gen-pass" class="modal-btn modal-btn-secondary" style="flex-shrink:0;margin:0">Сгенерировать</button>
+      </div>
+      <button id="ap-create-btn" class="modal-btn modal-btn-primary" style="margin-top:14px">Создать профиль</button>
+      <div id="ap-create-msg" class="report-copy-msg"></div>
+    </div>
+
+    <h3 style="font-size:15px;font-weight:700;margin:18px 0 8px">Существующие профили</h3>
+    <div class="settings-card glass" id="ap-list">
+      <p class="task-note">Загрузка…</p>
+    </div>
+  `;
+}
+
+function apRandomPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let out = '';
+  for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function renderAccessPanelList(accounts) {
+  const box = document.getElementById('ap-list');
+  if (!box) return;
+  if (!accounts.length) { box.innerHTML = `<p class="task-note">Пока никого нет.</p>`; return; }
+  box.innerHTML = accounts.map(a => `
+    <div class="report-controls-row" style="align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-weight:600">${a.displayName} <span class="readonly-tag">${a.role === 'admin' ? 'админ' : 'гость'}</span></div>
+        <div class="task-note" style="margin:0">логин: ${a.login}</div>
+      </div>
+      ${a.login === 'admin'
+        ? `<span class="task-note">это вы</span>`
+        : `<button class="modal-btn modal-btn-danger ap-deactivate-btn" data-uid="${a.uid}" data-login="${a.login}" data-name="${a.displayName}">Деактивировать</button>`}
+    </div>
+  `).join('');
+
+  box.querySelectorAll('.ap-deactivate-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`Деактивировать вход «${btn.dataset.name}»? Он сразу потеряет доступ. Можно будет создать новый профиль взамен.`)) return;
+      btn.disabled = true;
+      try {
+        await deactivateManagedAccount(btn.dataset.uid, btn.dataset.login);
+      } catch (err) {
+        alert('Не удалось деактивировать: ' + err.message);
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function wireAccessPanelForm() {
+  const genBtn = document.getElementById('ap-gen-pass');
+  const passInput = document.getElementById('ap-password');
+  if (genBtn && passInput) {
+    genBtn.addEventListener('click', () => { passInput.value = apRandomPassword(); });
+    passInput.value = apRandomPassword();
+  }
+
+  const createBtn = document.getElementById('ap-create-btn');
+  if (!createBtn) return;
+  createBtn.addEventListener('click', async () => {
+    const msg = document.getElementById('ap-create-msg');
+    const role = document.getElementById('ap-role').value;
+    const login = document.getElementById('ap-login').value.trim().toLowerCase();
+    const displayName = document.getElementById('ap-name').value.trim();
+    const password = document.getElementById('ap-password').value.trim();
+
+    if (!/^[a-z0-9_]{3,20}$/.test(login)) {
+      msg.innerHTML = `<span style="color:#D70015">Логин — латиницей/цифрами, 3–20 символов, без пробелов</span>`;
+      return;
+    }
+    if (!displayName) { msg.innerHTML = `<span style="color:#D70015">Укажите имя</span>`; return; }
+    if (password.length < 6) { msg.innerHTML = `<span style="color:#D70015">Пароль минимум 6 символов</span>`; return; }
+
+    createBtn.disabled = true;
+    msg.textContent = 'Создаю…';
+    try {
+      await createManagedAccount({ login, displayName, role, password });
+      msg.innerHTML = `✅ Готово! Логин: <code>${login}</code>, пароль: <code>${password}</code> — сохраните это, повторно пароль не показать.`;
+      document.getElementById('ap-login').value = '';
+      document.getElementById('ap-name').value = '';
+      document.getElementById('ap-password').value = apRandomPassword();
+    } catch (err) {
+      msg.innerHTML = `<span style="color:#D70015">⚠ ${err.message}</span>`;
+    } finally {
+      createBtn.disabled = false;
+    }
+  });
 }
 
 function renderEngagementList(participants) {
